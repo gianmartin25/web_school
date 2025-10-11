@@ -1,36 +1,138 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de Gestión Escolar
 
-## Getting Started
+Un sistema completo de gestión escolar desarrollado con Next.js 14, TypeScript, Prisma ORM y PostgreSQL.
 
-First, run the development server:
+## 🚀 Características Principales
 
+### Para Padres
+- **Dashboard personalizado** con resumen del progreso académico
+- **Visualización de calificaciones** en tiempo real
+- **Control de asistencia** de sus hijos
+- **Mensajería directa** con profesores
+- **Notificaciones automáticas** sobre ausencias y nuevas calificaciones
+- **Observaciones del comportamiento** estudiantil
+
+### Para Profesores
+- **Gestión de clases** y estudiantes
+- **Registro de calificaciones** por tipo (exámenes, tareas, participación)
+- **Control de asistencia** diario
+- **Sistema de observaciones** del comportamiento
+- **Comunicación directa** con padres
+- **Dashboard con estadísticas** de sus clases
+
+### Para Administradores
+- **Panel de control completo** del sistema
+- **Gestión de usuarios** (profesores, padres, estudiantes)
+- **Reportes y estadísticas** generales
+- **Configuración del sistema**
+- **Supervisión de actividades**
+
+## 🛠️ Stack Tecnológico
+
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **UI Components**: shadcn/ui, Radix UI, Lucide React
+- **Backend**: Next.js API Routes
+- **Base de Datos**: PostgreSQL con Prisma ORM
+- **Autenticación**: NextAuth.js
+- **Validación**: Zod, React Hook Form
+- **Estado**: TanStack Query (React Query)
+- **Estilos**: Tailwind CSS
+
+## 📋 Requisitos Previos
+
+- Node.js 18.0 o superior
+- PostgreSQL 12 o superior
+- npm o yarn
+
+## 🚀 Instalación y Configuración
+
+### 1. Instalar dependencias
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configurar variables de entorno
+Configura las siguientes variables en `.env.local`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/school_db?schema=public"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# NextAuth.js
+NEXTAUTH_SECRET="your-nextauth-secret-here"
+NEXTAUTH_URL="http://localhost:3000"
 
-## Learn More
+# Email Configuration (for notifications)
+EMAIL_FROM="noreply@school.com"
+EMAIL_SERVER_HOST="smtp.gmail.com"
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER="your-email@gmail.com"
+EMAIL_SERVER_PASSWORD="your-app-password"
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Configurar la base de datos
+```bash
+# Generar el cliente de Prisma
+npx prisma generate
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Ejecutar migraciones
+npx prisma migrate dev --name init
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Ejecutar el proyecto
+```bash
+# Desarrollo
+npm run dev
 
-## Deploy on Vercel
+# Producción
+npm run build
+npm start
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔐 Credenciales de Prueba
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Administrador**: admin@school.com / admin123
+- **Profesor**: teacher@school.com / teacher123
+- **Padre**: parent@school.com / parent123
+
+## 📝 Funcionalidades Implementadas
+
+✅ Autenticación multi-rol  
+✅ Dashboard personalizado por rol  
+✅ Gestión de estudiantes  
+✅ Sistema de calificaciones  
+✅ Control de asistencia  
+✅ Sistema de mensajería  
+✅ Notificaciones  
+✅ Observaciones del comportamiento  
+✅ Diseño responsivo  
+✅ Validación de formularios  
+
+## 🔄 Próximas Funcionalidades
+
+- [ ] Sistema de reportes avanzados
+- [ ] Calendario académico
+- [ ] Gestión de tareas y asignaciones
+- [ ] Sistema de evaluaciones en línea
+- [ ] Integración con email
+- [ ] Aplicación móvil
+
+## 📁 Estructura del Proyecto
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API Routes
+│   ├── auth/              # Páginas de autenticación
+│   └── dashboard/         # Dashboard principal
+├── components/            # Componentes React
+│   └── ui/               # Componentes de UI (shadcn/ui)
+├── lib/                  # Utilidades y configuraciones
+│   ├── auth.ts           # Configuración de NextAuth
+│   └── prisma.ts         # Cliente de Prisma
+└── types/                # Definiciones de tipos TypeScript
+prisma/
+└── schema.prisma         # Esquema de la base de datos
+```
+
+El proyecto está listo para desarrollo. Ejecuta `npm run dev` para comenzar.

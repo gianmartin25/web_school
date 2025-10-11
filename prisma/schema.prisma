@@ -1,0 +1,495 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../docs/erd.svg"
+  theme    = "forest"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// User Management Models
+enum UserRole {
+  ADMIN
+  TEACHER
+  PARENT
+  STUDENT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(PARENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth.js relations
+  accounts Account[]
+  sessions Session[]
+
+  // School relations
+  teacherProfile TeacherProfile?
+  parentProfile  ParentProfile?
+  studentProfile StudentProfile?
+
+  // Notifications and messages
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  notifications    Notification[]
+  userSettings     UserSettings?
+
+  @@map("users")
+}
+
+model TeacherProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  employeeId  String   @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  address     String?
+  dateOfBirth DateTime?
+  hireDate    DateTime @default(now())
+  salary      Float?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjects     Subject[]
+  classes      Class[]
+  grades       Grade[]
+  attendances  Attendance[]
+  observations Observation[]
+
+  @@map("teacher_profiles")
+}
+
+model ParentProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  firstName   String
+  lastName    String
+  phone       String
+  address     String?
+  dateOfBirth DateTime?
+  occupation  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children Student[]
+
+  @@map("parent_profiles")
+}
+
+model StudentProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  studentId     String   @unique
+  firstName     String
+  lastName      String
+  dateOfBirth   DateTime
+  grade         String   // Mantener por compatibilidad
+  section       String?  // Mantener por compatibilidad
+  gradeId       String?  // Nueva relación
+  sectionId     String?  // Nueva relación
+  enrollmentDate DateTime @default(now())
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  academicGrade  AcademicGrade? @relation(fields: [gradeId], references: [id])
+  academicSection Section?      @relation(fields: [sectionId], references: [id])
+  
+  @@map("student_profiles")
+}
+
+// Academic Organization Models
+model AcademicGrade {
+  id          String   @id @default(cuid())
+  name        String   @unique // "1ro", "2do", "3ro", etc.
+  level       Int      @unique // 1, 2, 3, etc.
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  students        Student[]
+  studentProfiles StudentProfile[]
+  classes         Class[]
+  sections        GradeSection[]
+
+  @@map("academic_grades")
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  name        String   @unique // "A", "B", "C", etc.
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  students        Student[]
+  studentProfiles StudentProfile[]
+  classes         Class[]
+  gradeSections   GradeSection[]
+
+  @@map("sections")
+}
+
+// Junction table for Grade-Section combinations
+model GradeSection {
+  id        String   @id @default(cuid())
+  gradeId   String
+  sectionId String
+  isActive  Boolean  @default(true)
+  capacity  Int      @default(25)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  grade   AcademicGrade @relation(fields: [gradeId], references: [id])
+  section Section       @relation(fields: [sectionId], references: [id])
+
+  @@unique([gradeId, sectionId])
+  @@map("grade_sections")
+}
+
+// Academic Models
+model Student {
+  id             String   @id @default(cuid())
+  studentId      String   @unique
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime
+  grade          String   // Mantener por compatibilidad
+  section        String?  // Mantener por compatibilidad
+  gradeId        String?  // Nueva relación
+  sectionId      String?  // Nueva relación
+  enrollmentDate DateTime @default(now())
+  parentId       String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  parent         ParentProfile  @relation(fields: [parentId], references: [id])
+  academicGrade  AcademicGrade? @relation(fields: [gradeId], references: [id])
+  academicSection Section?      @relation(fields: [sectionId], references: [id])
+  classes        ClassStudent[]
+  grades         Grade[]
+  attendances    Attendance[]
+  observations   Observation[]
+
+  @@map("students")
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  credits     Int      @default(1)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacherId String?
+  teacher   TeacherProfile? @relation(fields: [teacherId], references: [id])
+  classes   Class[]
+  grades    Grade[]
+
+  @@map("subjects")
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+  grade       String   // Mantener por compatibilidad
+  section     String   // Mantener por compatibilidad
+  gradeId     String?  // Nueva relación
+  sectionId   String?  // Nueva relación
+  academicYear String
+  maxStudents Int      @default(30)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacherId String
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id])
+  subjectId String
+  subject   Subject        @relation(fields: [subjectId], references: [id])
+  academicGrade  AcademicGrade? @relation(fields: [gradeId], references: [id])
+  academicSection Section?      @relation(fields: [sectionId], references: [id])
+
+  students    ClassStudent[]
+  grades      Grade[]
+  attendances Attendance[]
+
+  @@unique([name, grade, section, academicYear])
+  @@map("classes")
+}
+
+model ClassStudent {
+  id        String   @id @default(cuid())
+  classId   String
+  studentId String
+  createdAt DateTime @default(now())
+
+  class   Class   @relation(fields: [classId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@unique([classId, studentId])
+  @@map("class_students")
+}
+
+// Grading System
+enum GradeType {
+  EXAM
+  QUIZ
+  HOMEWORK
+  PARTICIPATION
+  PROJECT
+  MIDTERM
+  FINAL
+}
+
+model Grade {
+  id          String    @id @default(cuid())
+  studentId   String
+  subjectId   String
+  teacherId   String
+  classId     String?
+  gradeType   GradeType
+  score       Float
+  maxScore    Float     @default(100)
+  percentage  Float?
+  letterGrade String?
+  comments    String?
+  gradeDate   DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  student Student        @relation(fields: [studentId], references: [id])
+  subject Subject        @relation(fields: [subjectId], references: [id])
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
+  class   Class?         @relation(fields: [classId], references: [id])
+
+  @@map("grades")
+}
+
+// Attendance System
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  studentId String
+  classId   String
+  teacherId String
+  date      DateTime
+  status    AttendanceStatus
+  notes     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  student Student        @relation(fields: [studentId], references: [id])
+  class   Class          @relation(fields: [classId], references: [id])
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
+
+  @@unique([studentId, classId, date])
+  @@map("attendances")
+}
+
+// Observation System
+model Observation {
+  id          String   @id @default(cuid())
+  studentId   String
+  teacherId   String
+  title       String
+  description String
+  category    String
+  isPositive  Boolean  @default(true)
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student Student        @relation(fields: [studentId], references: [id])
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
+
+  @@map("observations")
+}
+
+// Communication System
+enum MessageType {
+  GENERAL
+  GRADE_NOTIFICATION
+  ATTENDANCE_ALERT
+  BEHAVIOR_REPORT
+  ANNOUNCEMENT
+  MEETING_REQUEST
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  senderId  String
+  receiverId String
+  subject   String
+  content   String
+  type      MessageType @default(GENERAL)
+  isRead    Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@map("messages")
+}
+
+// Notification System
+enum NotificationType {
+  GRADE_POSTED
+  ATTENDANCE_ALERT
+  ASSIGNMENT_DUE
+  MEETING_SCHEDULED
+  ANNOUNCEMENT
+  BEHAVIOR_REPORT
+  PAYMENT_DUE
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  actionUrl String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// School Settings
+model SchoolSettings {
+  id                       String   @id @default(cuid())
+  schoolName               String
+  schoolAddress            String
+  schoolPhone              String
+  schoolEmail              String
+  schoolWebsite            String
+  logoUrl                  String?
+  primaryColor             String   @default("#3B82F6")
+  secondaryColor           String   @default("#10B981")
+  academicYearStart        String
+  academicYearEnd          String
+  gradeSystem              String   @default("numeric")
+  maxGrade                 Int      @default(100)
+  passingGrade             Int      @default(60)
+  attendanceRequired       Int      @default(80)
+  timezone                 String   @default("America/Mexico_City")
+  language                 String   @default("es")
+  enableNotifications      Boolean  @default(true)
+  enableEmailNotifications Boolean  @default(true)
+  enableSMSNotifications   Boolean  @default(false)
+  enableParentPortal       Boolean  @default(true)
+  enableStudentPortal      Boolean  @default(true)
+  enableOnlineGrades       Boolean  @default(true)
+  enableAttendanceTracking Boolean  @default(true)
+  enableMessaging          Boolean  @default(true)
+  autoBackup               Boolean  @default(false)
+  backupFrequency          String   @default("weekly")
+  dataRetentionDays        Int      @default(365)
+  maintenanceMode          Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("school_settings")
+}
+
+// User Settings
+model UserSettings {
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  theme              String  @default("light")
+  language           String  @default("es")
+  timezone           String  @default("America/Mexico_City")
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  smsNotifications   Boolean @default(false)
+  digestFrequency    String  @default("weekly")
+  showFullName       Boolean @default(true)
+  showEmail          Boolean @default(false)
+  showPhone          Boolean @default(false)
+  twoFactorEnabled   Boolean @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
