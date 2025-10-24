@@ -46,32 +46,58 @@ export function GradeSectionCombobox({ items, value, onValueChange, placeholder 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between h-10 px-3 py-2 text-sm">
-          {selected ? `${selected.grade.name} - Sección ${selected.section.name}` : <span className="text-muted-foreground">{placeholder}</span>}
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between h-10 px-3 text-sm rounded-md"
+        >
+          {selected ? (
+            <span className="truncate">{`${selected.grade.name} - Sección ${selected.section.name}`}</span>
+          ) : (
+            <span className="text-muted-foreground">{placeholder}</span>
+          )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput placeholder="Buscar grado o sección..." className="h-9" value={search} onValueChange={setSearch} />
-          <CommandList>
-            {filtered.length === 0 ? (
-              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">No se encontraron combinaciones</CommandEmpty>
-            ) : (
-              <CommandGroup>
-                {filtered.map(gs => (
-                  <CommandItem key={gs.id} value={gs.id} onSelect={() => { onValueChange(gs.id === value ? '' : gs.id); setOpen(false) }} className="p-2">
-                    <Check className={cn("h-4 w-4 shrink-0", value === gs.id ? "opacity-100" : "opacity-0")} />
-                    <div className="ml-2">
-                      <div className="font-medium">{gs.grade.name}</div>
-                      <div className="text-xs text-muted-foreground">Sección {gs.section.name}</div>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-          </CommandList>
-        </Command>
+
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2 max-h-72 overflow-hidden rounded-lg border shadow-lg bg-popover" align="start">
+        <div className="px-1">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Buscar grado o sección..."
+              className="h-10 px-3 rounded-md text-sm border"
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList className="mt-2">
+              {filtered.length === 0 ? (
+                <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">No se encontraron combinaciones</CommandEmpty>
+              ) : (
+                <CommandGroup>
+                  {filtered.map(gs => (
+                    <CommandItem
+                      key={gs.id}
+                      value={gs.id}
+                      onSelect={() => { onValueChange(gs.id === value ? '' : gs.id); setOpen(false) }}
+                      className="flex items-center gap-3 p-3 rounded-md hover:bg-accent/10 focus:bg-accent/10"
+                    >
+                      <Check
+                        className={cn("h-4 w-4 shrink-0 text-muted-foreground", value === gs.id ? "opacity-100" : "opacity-0")}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-medium truncate text-sm">{gs.grade.name}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground">{`Sección ${gs.section.name}`}</span>
+                        </div>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </div>
       </PopoverContent>
     </Popover>
   )
