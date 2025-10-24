@@ -95,7 +95,7 @@ export async function GET() {
         include: {
           classes: {
             include: {
-              students: {
+              classStudents: {
                 include: {
                   student: {
                     include: {
@@ -134,7 +134,7 @@ export async function GET() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const students = teacherProfile.classes.flatMap((c: any) => 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        c.students.map((cs: any) => ({
+        c.classStudents.map((cs: any) => ({
           id: cs.student.id,
           studentId: cs.student.studentId,
           firstName: cs.student.firstName,
@@ -166,7 +166,7 @@ export async function GET() {
 
     if (session.user.role === 'ADMIN') {
       // Admins can see all students
-      const students = await prisma.student.findMany({
+      const students = await prisma.studentProfile.findMany({
         include: {
           parent: {
             include: {
@@ -176,6 +176,19 @@ export async function GET() {
                   email: true
                 }
               }
+            }
+          },
+          academicGrade: {
+            select: {
+              id: true,
+              name: true,
+              level: true
+            }
+          },
+          academicSection: {
+            select: {
+              id: true,
+              name: true
             }
           },
           classes: {
@@ -254,6 +267,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+
     const body = await request.json()
     const {
       firstName,
@@ -269,6 +283,18 @@ export async function POST(request: NextRequest) {
     } = body
 
     console.log('Received student data:', body)
+
+    // Validar que el grado y la sección estén activos
+    const [gradeObj, sectionObj] = await Promise.all([
+      prisma.academicGrade.findUnique({ where: { id: grade } }),
+      prisma.section.findUnique({ where: { id: section } })
+    ])
+    if (!gradeObj || !gradeObj.isActive) {
+      return NextResponse.json({ error: "El grado seleccionado está inactivo o no existe." }, { status: 400 })
+    }
+    if (!sectionObj || !sectionObj.isActive) {
+      return NextResponse.json({ error: "La sección seleccionada está inactiva o no existe." }, { status: 400 })
+    }
 
     let finalParentId = parentId
 
@@ -331,17 +357,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate student ID
-    const studentCount = await prisma.student.count()
+    const studentCount = await prisma.studentProfile.count()
     const studentId = `STU${String(studentCount + 1).padStart(4, '0')}`
 
-    const student = await prisma.student.create({
+    // Create user for student
+    const studentEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@estudiante.ie3024.edu.pe`
+    const hashedPassword = await bcrypt.hash('student123', 10) // Contraseña temporal
+    
+    const studentUser = await prisma.user.create({
       data: {
+        name: `${firstName} ${lastName}`,
+        email: studentEmail,
+        password: hashedPassword,
+        role: 'STUDENT'
+      }
+    })
+
+    const student = await prisma.studentProfile.create({
+      data: {
+        userId: studentUser.id,
         studentId,
         firstName,
         lastName,
         dateOfBirth: new Date(dateOfBirth),
-        grade,
-        section,
+        gradeId: grade, // Usar gradeId en lugar de grade
+        sectionId: section, // Usar sectionId en lugar de section
         parentId: finalParentId,
         enrollmentDate: new Date(),
         isActive: true

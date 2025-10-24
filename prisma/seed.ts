@@ -7,26 +7,47 @@ async function main() {
   console.log('🌱 Iniciando seed de la base de datos - I.E. 3024 José Antonio Encinas...')
 
   // Limpiar datos existentes en orden correcto (respetando relaciones)
+  await prisma.assignmentSubmission.deleteMany(); // Dependencias de StudentProfile
+  await prisma.attendance.deleteMany(); // Dependencias de StudentProfile
+  await prisma.grade.deleteMany(); // Dependencias de StudentProfile
+  await prisma.classStudent.deleteMany(); // Dependencias de Class y StudentProfile
+  await prisma.message.deleteMany(); // Dependencias de User
+  await prisma.notification.deleteMany(); // Dependencias de User
+  await prisma.attendance.deleteMany()
+  await prisma.observation.deleteMany()
+  await prisma.assignmentSubmission.deleteMany() // Delete dependencies of StudentProfile
+  await prisma.assignment.deleteMany()
+  await prisma.schedule.deleteMany()
   await prisma.observation.deleteMany()
   await prisma.attendance.deleteMany()
   await prisma.grade.deleteMany()
   await prisma.message.deleteMany()
   await prisma.notification.deleteMany()
   await prisma.classStudent.deleteMany()
-  await prisma.class.deleteMany()
-  await prisma.student.deleteMany()
+  // Asegurar eliminación de todas las dependencias de Class
+  await prisma.grade.deleteMany(); // Dependencias de Class
+  await prisma.classStudent.deleteMany(); // Dependencias de Class
+  await prisma.assignment.deleteMany(); // Dependencias opcionales de Class
+  await prisma.schedule.deleteMany(); // Dependencias de Class
+
+  // Eliminar registros de Class
+  await prisma.classMetrics.deleteMany()
+  await prisma.class.deleteMany();
+  await prisma.systemMetrics.deleteMany()
   await prisma.teacherProfile.deleteMany()
-  await prisma.parentProfile.deleteMany()
   await prisma.studentProfile.deleteMany()
+  await prisma.parentProfile.deleteMany()
   await prisma.subject.deleteMany()
   await prisma.gradeSection.deleteMany()
   await prisma.academicGrade.deleteMany()
   await prisma.section.deleteMany()
+  await prisma.academicPeriod.deleteMany()
   await prisma.schoolSettings.deleteMany()
   await prisma.userSettings.deleteMany()
   await prisma.account.deleteMany()
   await prisma.session.deleteMany()
   await prisma.user.deleteMany()
+  await prisma.user.deleteMany({ where: { role: 'PARENT' } }); // Delete users with role PARENT before deleting parent profiles
 
   console.log('🗑️ Datos existentes eliminados')
 
@@ -39,21 +60,20 @@ async function main() {
   console.log('🏫 Creando configuración del colegio...')
   
   // 1. CONFIGURACIÓN DEL COLEGIO
+  // Agregar campos obligatorios faltantes en SchoolSettings
   await prisma.schoolSettings.create({
     data: {
       schoolName: 'I.E. 3024 José Antonio Encinas',
       schoolAddress: 'Av. José Antonio Encinas 123, San Juan de Lurigancho, Lima',
       schoolPhone: '+51 01 234-5678',
-      schoolEmail: 'contacto@ie3024.edu.pe',
-      schoolWebsite: 'https://ie3024.edu.pe',
-      primaryColor: '#1E40AF',
-      secondaryColor: '#DC2626',
-      academicYearStart: '2025-03-01',
-      academicYearEnd: '2025-12-15',
+      schoolEmail: 'contacto@ie3024.edu.pe', // Campo obligatorio agregado
+      schoolWebsite: 'https://ie3024.edu.pe', // Campo obligatorio agregado
+      academicYearStart: '2025-03-01', // Campo obligatorio agregado
+      academicYearEnd: '2025-12-15', // Campo obligatorio agregado
       gradeSystem: 'vigesimal',
       maxGrade: 20,
-      passingGrade: 11,
-      attendanceRequired: 80,
+      passingGrade: 11, // Mantener una sola definición
+      attendanceRequired: 80, // Mantener una sola definición
       timezone: 'America/Lima',
       language: 'es',
     }
@@ -143,7 +163,60 @@ async function main() {
     }
   }
 
-  console.log('📚 Creando materias...')
+  console.log('� Creando períodos académicos...')
+  
+  // 6. PERÍODOS ACADÉMICOS
+  const academicPeriods = []
+  const currentYear = '2025'
+  
+  // Crear trimestres para el año académico 2025
+  const trimesterData = [
+    {
+      name: 'Primer Trimestre 2025',
+      type: 'TRIMESTER',
+      order: 1,
+      startDate: new Date('2025-03-01'),
+      endDate: new Date('2025-05-31'),
+      isCurrent: true,
+      gradesDueDate: new Date('2025-06-05'),
+      reportCardDate: new Date('2025-06-10'),
+      parentMeetingDate: new Date('2025-06-15'),
+    },
+    {
+      name: 'Segundo Trimestre 2025',
+      type: 'TRIMESTER',
+      order: 2,
+      startDate: new Date('2025-06-01'),
+      endDate: new Date('2025-08-31'),
+      gradesDueDate: new Date('2025-09-05'),
+      reportCardDate: new Date('2025-09-10'),
+      parentMeetingDate: new Date('2025-09-15'),
+    },
+    {
+      name: 'Tercer Trimestre 2025',
+      type: 'TRIMESTER',
+      order: 3,
+      startDate: new Date('2025-09-01'),
+      endDate: new Date('2025-12-15'),
+      gradesDueDate: new Date('2025-12-20'),
+      reportCardDate: new Date('2025-12-22'),
+      parentMeetingDate: new Date('2025-12-18'),
+    },
+  ]
+  
+  for (const periodData of trimesterData) {
+    const period = await prisma.academicPeriod.create({
+      data: {
+        ...periodData,
+        academicYear: currentYear,
+        description: `${periodData.name} del año académico ${currentYear}`,
+        isActive: true,
+      }
+    })
+    academicPeriods.push(period)
+  }
+
+  console.log('�📚 Creando materias...')
   
   // 6. MATERIAS
   const subjects = await Promise.all([
@@ -702,37 +775,27 @@ async function main() {
       }
     })
 
-    // Crear perfil de estudiante
-    await prisma.studentProfile.create({
+    // Crear perfil de estudiante (ahora incluye toda la funcionalidad)
+    const studentProfile = await prisma.studentProfile.create({
       data: {
         userId: studentUser.id,
         studentId: studentData.studentId,
         firstName: studentData.firstName,
         lastName: studentData.lastName,
         dateOfBirth: studentData.dateOfBirth,
-        grade: academicGrade.name,
-        section: section.name,
-        gradeId: academicGrade.id,
-        sectionId: section.id,
-      }
-    })
-
-    // Crear estudiante
-    const student = await prisma.student.create({
-      data: {
-        studentId: studentData.studentId,
-        firstName: studentData.firstName,
-        lastName: studentData.lastName,
-        dateOfBirth: studentData.dateOfBirth,
-        grade: academicGrade.name,
-        section: section.name,
         gradeId: academicGrade.id,
         sectionId: section.id,
         parentId: parents[studentData.parentIndex].id,
+        // Initialize dashboard metrics
+        currentGPA: null,
+        attendanceRate: null,
+        behaviorScore: 100,
+        totalCredits: 0,
+        parentContact: parents[studentData.parentIndex].phone,
       }
     })
 
-    students.push(student)
+    students.push(studentProfile)
   }
 
   console.log('🏫 Creando clases...')
@@ -752,8 +815,6 @@ async function main() {
           const classData = await prisma.class.create({
             data: {
               name: `${subject.name} - ${grade.name}${section.name}`,
-              grade: grade.name,
-              section: section.name,
               gradeId: grade.id,
               sectionId: section.id,
               academicYear: '2025',
@@ -780,8 +841,6 @@ async function main() {
           const classData = await prisma.class.create({
             data: {
               name: `${subject.name} - ${grade.name}${section.name}`,
-              grade: grade.name,
-              section: section.name,
               gradeId: grade.id,
               sectionId: section.id,
               academicYear: '2025',
@@ -843,10 +902,12 @@ async function main() {
             subjectId: classData.subjectId,
             teacherId: classData.teacherId,
             classId: classData.id,
+            academicPeriodId: academicPeriods[0].id, // ✅ AGREGADO: Usar primer trimestre
             gradeType: gradeType,
             score: score,
             maxScore: maxScore,
             percentage: percentage,
+            term: 'T1', // ✅ AGREGADO: Primer trimestre
             letterGrade: score >= 18 ? 'AD' : score >= 14 ? 'A' : score >= 11 ? 'B' : 'C',
             comments: score >= 18 ? 'Logro destacado' : score >= 14 ? 'Logro esperado' : score >= 11 ? 'En proceso' : 'En inicio',
             gradeDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
@@ -958,7 +1019,7 @@ async function main() {
     },
     {
       title: 'Simulacro de sismo',
-      message: 'Mañana se realizará un simulacro de sismo a las 10:00 AM. Por favor, hablar con sus hijos sobre las medidas de seguridad.',
+      message: 'Mañana se realizará un simulacro de sismo a las 10:00 AM.',
       type: 'ANNOUNCEMENT' as const,
     },
     {
@@ -1031,6 +1092,251 @@ async function main() {
     }
   }
 
+  console.log('🕐 Creando horarios de clases...')
+  
+  // 17. HORARIOS
+  const timeSlots = [
+    { start: '08:00', end: '08:50' },
+    { start: '08:50', end: '09:40' },
+    { start: '10:00', end: '10:50' }, // Recreo 09:40-10:00
+    { start: '10:50', end: '11:40' },
+    { start: '11:40', end: '12:30' },
+    { start: '14:00', end: '14:50' }, // Almuerzo 12:30-14:00
+    { start: '14:50', end: '15:40' },
+  ]
+
+  for (const classData of classes.slice(0, 20)) { // Crear horarios para algunas clases
+    const dayOfWeek = (Math.floor(Math.random() * 5) + 1).toString(); // Convert dayOfWeek to string
+    const timeSlot = timeSlots[Math.floor(Math.random() * timeSlots.length)]
+    
+    // Corregir el formato de startTime y endTime a ISO-8601
+    await prisma.schedule.create({
+      data: {
+        classId: classData.id,
+        dayOfWeek: dayOfWeek,
+        startTime: new Date(`2025-10-24T${timeSlot.start}:00.000Z`).toISOString(), // Convertir a ISO-8601
+        endTime: new Date(`2025-10-24T${timeSlot.end}:00.000Z`).toISOString(), // Convertir a ISO-8601
+        room: `Aula ${Math.floor(Math.random() * 20) + 1}`,
+        notes: 'Clase asignada automáticamente', // Agregar campo notes si es necesario
+        academicPeriodId: academicPeriods[0].id,
+      }
+    })
+  }
+
+  console.log('📝 Creando tareas y asignaciones...')
+  
+  // 18. TAREAS/ASIGNACIONES
+  const assignmentTitles = [
+    'Tarea de Matemáticas - Problemas de álgebra',
+    'Ensayo sobre la Independencia del Perú',
+    'Proyecto de Ciencias - Sistema Solar',
+    'Ejercicios de comprensión lectora',
+    'Investigación sobre ecosistemas',
+    'Problemas de geometría',
+    'Análisis de texto literario',
+    'Experimento de química básica',
+  ]
+
+  for (const classData of classes.slice(0, 15)) { // Crear tareas para algunas clases
+    const title = assignmentTitles[Math.floor(Math.random() * assignmentTitles.length)]
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + Math.floor(Math.random() * 14) + 1) // 1-14 días desde hoy
+    
+    const assignment = await prisma.assignment.create({
+      data: {
+        classId: classData.id,
+        teacherId: classData.teacherId,
+        title: title,
+        description: `Descripción detallada de la tarea: ${title}`,
+        dueDate: dueDate,
+        maxScore: 20,
+        weight: 1.0,
+        type: Math.random() > 0.5 ? 'HOMEWORK' : 'PROJECT',
+        allowLateSubmission: Math.random() > 0.7,
+        latePenalty: Math.random() > 0.5 ? 2.0 : null,
+      }
+    })
+
+    // Crear algunas entregas de estudiantes
+    const classStudents = await prisma.classStudent.findMany({
+      where: { classId: classData.id }
+    })
+
+    for (const classStudent of classStudents.slice(0, 5)) { // Solo algunos estudiantes
+      if (Math.random() > 0.3) { // 70% de probabilidad de entrega
+        await prisma.assignmentSubmission.create({
+          data: {
+            assignmentId: assignment.id,
+            studentId: classStudent.studentId,
+            submittedAt: Math.random() > 0.8 ? null : new Date(), // 20% sin entregar
+            score: Math.random() > 0.8 ? null : Math.floor(Math.random() * 21), // 20% sin calificar
+            feedback: Math.random() > 0.5 ? 'Buen trabajo, sigue así' : null,
+            isLate: Math.random() > 0.9, // 10% entrega tardía
+            status: Math.random() > 0.7 ? 'GRADED' : Math.random() > 0.5 ? 'SUBMITTED' : 'PENDING',
+          }
+        })
+      }
+    }
+  }
+
+  // 19. MÉTRICAS DE CLASES
+  console.log('📊 Creando métricas de clases...')
+  
+  for (const classData of classes.slice(0, 10)) {
+    await prisma.classMetrics.create({
+      data: {
+        classId: classData.id,
+        totalStudents: Math.floor(Math.random() * 20) + 15, // 15-35 estudiantes
+        activeStudents: Math.floor(Math.random() * 15) + 12, // 12-27 estudiantes activos
+        averageGrade: Math.random() * 4 + 13, // 13-17 promedio
+        attendanceRate: Math.random() * 20 + 80, // 80-100% asistencia
+      }
+    })
+  }
+
+  // 20. MÉTRICAS DEL SISTEMA
+  console.log('📈 Creando métricas del sistema...')
+  
+  await prisma.systemMetrics.create({
+    data: {
+      totalUsers: await prisma.user.count(),
+      totalStudents: await prisma.studentProfile.count(),
+      totalTeachers: await prisma.teacherProfile.count(),
+      totalParents: await prisma.parentProfile.count(),
+      totalClasses: await prisma.class.count(),
+      activeClasses: Math.floor((await prisma.class.count()) * 0.9), // 90% activas
+      averageGrade: 15.2, // Promedio general
+      averageAttendance: 92.5, // Porcentaje promedio de asistencia
+      systemUptime: 99.8, // Tiempo de actividad del sistema
+      academicYear: '2025',
+    }
+  })
+
+  // 21. CONFIGURACIONES DE USUARIO
+  console.log('⚙️ Creando configuraciones de usuario...')
+  
+  const allUsers = await prisma.user.findMany()
+  const existingSettings = await prisma.userSettings.findMany()
+  const usersWithoutSettings = allUsers.filter(user => 
+    !existingSettings.some(setting => setting.userId === user.id)
+  )
+  
+  for (const user of usersWithoutSettings.slice(0, 15)) { // Configurar usuarios sin settings
+    await prisma.userSettings.create({
+      data: {
+        userId: user.id,
+        theme: Math.random() > 0.5 ? 'light' : 'dark',
+        language: Math.random() > 0.8 ? 'en' : 'es',
+        emailNotifications: Math.random() > 0.2, // 80% tienen notificaciones email
+        pushNotifications: Math.random() > 0.3, // 70% tienen push notifications
+        smsNotifications: Math.random() > 0.8, // 20% tienen SMS
+        timezone: 'America/Lima',
+        digestFrequency: Math.random() > 0.5 ? 'weekly' : 'daily',
+        showFullName: Math.random() > 0.2, // 80% muestran nombre completo
+      }
+    })
+  }
+
+  // 22. MÁS HORARIOS DETALLADOS
+  console.log('🕐 Creando horarios adicionales...')
+  
+  const detailedTimeSlots = [
+    { start: '07:00', end: '07:45' },
+    { start: '07:45', end: '08:30' },
+    { start: '08:30', end: '09:15' },
+    { start: '09:30', end: '10:15' }, // Recreo incluido
+    { start: '10:15', end: '11:00' },
+    { start: '11:00', end: '11:45' },
+    { start: '11:45', end: '12:30' },
+  ]
+  
+  const classrooms = ['A101', 'A102', 'A103', 'B201', 'B202', 'B203', 'C301', 'C302', 'LAB1', 'LAB2']
+  
+  for (const classData of classes.slice(0, 30)) {
+    const daysOfWeek = [1, 2, 3, 4, 5] // Lunes a Viernes
+    const randomDays = daysOfWeek.slice(0, Math.floor(Math.random() * 3) + 2) // 2-4 días por semana
+    
+    for (const day of randomDays) {
+      const timeSlot = detailedTimeSlots[Math.floor(Math.random() * detailedTimeSlots.length)]
+      const classroom = classrooms[Math.floor(Math.random() * classrooms.length)]
+      
+      await prisma.schedule.create({
+        data: {
+          classId: classData.id,
+          dayOfWeek: day.toString(), // Convertir a string para cumplir con el tipo
+          // startTime/endTime are DateTime in the schema; build ISO datetimes
+          // Use a neutral date (2025-01-01) and append the time slot
+          startTime: new Date(`2025-01-01T${timeSlot.start}:00`),
+          endTime: new Date(`2025-01-01T${timeSlot.end}:00`),
+          room: classroom,
+          academicPeriodId: academicPeriods[0].id, // Primer trimestre
+        }
+      })
+    }
+  }
+
+  // 23. MÁS ASIGNACIONES VARIADAS
+  console.log('📚 Creando asignaciones adicionales...')
+  
+  const detailedAssignments = [
+    {
+      title: 'Proyecto Final - Historia del Perú',
+      description: 'Investigación completa sobre un período específico de la historia peruana',
+      type: 'PROJECT',
+      points: 100,
+      instructions: 'Desarrollar una investigación de 10 páginas con fuentes primarias y secundarias'
+    },
+    {
+      title: 'Examen Parcial - Álgebra',
+      description: 'Evaluación de ecuaciones lineales y cuadráticas',
+      type: 'EXAM',
+      points: 80,
+      instructions: 'Resolver 20 problemas de álgebra en 90 minutos'
+    },
+    {
+      title: 'Laboratorio - Reacciones Químicas',
+      description: 'Experimento práctico sobre reacciones ácido-base',
+      type: 'LAB',
+      points: 60,
+      instructions: 'Seguir protocolo de seguridad y documentar observaciones'
+    },
+    {
+      title: 'Ensayo - Literatura Contemporánea',
+      description: 'Análisis crítico de obra literaria moderna',
+      type: 'ESSAY',
+      points: 70,
+      instructions: 'Ensayo de 1500 palabras con análisis profundo del texto'
+    },
+    {
+      title: 'Presentación - Sistema Solar',
+      description: 'Exposición grupal sobre planetas y astronomía',
+      type: 'PRESENTATION',
+      points: 90,
+      instructions: 'Presentación de 15 minutos con material visual'
+    }
+  ]
+
+  for (const assignmentData of detailedAssignments) {
+    const randomClass = classes[Math.floor(Math.random() * classes.length)]
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + Math.floor(Math.random() * 21) + 7) // 7-28 días
+    
+    await prisma.assignment.create({
+      data: {
+        title: assignmentData.title,
+        description: `${assignmentData.description}\n\nInstrucciones: ${assignmentData.instructions}`,
+        dueDate: dueDate,
+        maxScore: assignmentData.points,
+        type: assignmentData.type,
+        classId: randomClass.id,
+        teacherId: randomClass.teacherId,
+        isActive: Math.random() > 0.2, // 80% activas
+        allowLateSubmission: Math.random() > 0.5,
+        weight: Math.random() * 0.5 + 0.5, // peso 0.5-1.0
+      }
+    })
+  }
+
   console.log('✅ Seed completado exitosamente!')
   
   // Obtener estadísticas finales
@@ -1038,7 +1344,7 @@ async function main() {
     users: await prisma.user.count(),
     teachers: await prisma.teacherProfile.count(),
     parents: await prisma.parentProfile.count(),
-    students: await prisma.student.count(),
+    students: await prisma.studentProfile.count(),
     subjects: await prisma.subject.count(),
     classes: await prisma.class.count(),
     grades: await prisma.grade.count(),
@@ -1046,6 +1352,10 @@ async function main() {
     messages: await prisma.message.count(),
     notifications: await prisma.notification.count(),
     observations: await prisma.observation.count(),
+    academicPeriods: await prisma.academicPeriod.count(),
+    schedules: await prisma.schedule.count(),
+    assignments: await prisma.assignment.count(),
+    submissions: await prisma.assignmentSubmission.count(),
   }
 
   console.log(`
@@ -1061,6 +1371,10 @@ async function main() {
 - 💬 Mensajes: ${stats.messages}
 - 🔔 Notificaciones: ${stats.notifications}
 - 📝 Observaciones: ${stats.observations}
+- 📅 Períodos académicos: ${stats.academicPeriods}
+- ⏰ Horarios: ${stats.schedules}
+- 📋 Tareas: ${stats.assignments}
+- 📝 Entregas: ${stats.submissions}
 
 🔑 CREDENCIALES DE ACCESO:
 📧 Admin: admin@ie3024.edu.pe / admin123

@@ -6,6 +6,8 @@ import { SidebarLayout } from '@/components/sidebar-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SubjectCombobox } from '@/components/subject-combobox'
+import { UserCombobox } from '@/components/user-combobox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -50,6 +52,8 @@ interface AdminClassData {
   }
   grade: string
   section: string
+  schedules?: string[]
+  enrolledStudents?: number
   academicYear: string
   maxStudents: number
   currentStudents: number
@@ -77,6 +81,7 @@ export default function AdminClassesPage() {
   const [classes, setClasses] = useState<AdminClassData[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [gradeSections, setGradeSections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGrade, setSelectedGrade] = useState<string>('')
@@ -85,29 +90,56 @@ export default function AdminClassesPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedClass, setSelectedClass] = useState<AdminClassData | null>(null)
 
+  // Create dialog form state
+  const [createName, setCreateName] = useState('')
+  const [createGradeSectionLabel, setCreateGradeSectionLabel] = useState('')
+  const [createSubjectId, setCreateSubjectId] = useState('')
+  const [createTeacherId, setCreateTeacherId] = useState('')
+  const [createMaxStudents, setCreateMaxStudents] = useState(30)
+  const [createSchedules, setCreateSchedules] = useState<Array<{ dayOfWeek: string, startTime: string, endTime: string, room?: string }>>([])
+
+  // Edit dialog form state
+  const [editName, setEditName] = useState('')
+  const [editGradeSectionLabel, setEditGradeSectionLabel] = useState('')
+  const [editMaxStudents, setEditMaxStudents] = useState<number | undefined>(undefined)
+
   // Fetch data from API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [classesRes, subjectsRes, teachersRes] = await Promise.all([
+        const [classesRes, subjectsRes, teachersRes, gradeSectionsRes] = await Promise.all([
           fetch('/api/classes'),
           fetch('/api/subjects'),
-          fetch('/api/teachers')
+          fetch('/api/teachers'),
+          fetch('/api/grade-sections'),
         ])
 
         const classesData = await classesRes.json()
-        const subjectsData = await subjectsRes.json()
-        const teachersData = await teachersRes.json()
+  const subjectsData = await subjectsRes.json()
+  const teachersData = await teachersRes.json()
+        const gradeSectionsData = await gradeSectionsRes.json()
 
+        // classes endpoint may return { classes: [...], total }
         if (Array.isArray(classesData)) {
-          setClasses(classesData)
+          const mapped = classesData.map((c: any) => ({ ...c, currentStudents: c.enrolledStudents ?? c.currentStudents ?? 0 }))
+          setClasses(mapped)
+        } else if (classesData && Array.isArray(classesData.classes)) {
+          const mapped = classesData.classes.map((c: any) => ({ ...c, currentStudents: c.enrolledStudents ?? c.currentStudents ?? 0 }))
+          setClasses(mapped)
         }
+
         if (Array.isArray(subjectsData)) {
           setSubjects(subjectsData)
         }
+        // teachers endpoint may return { teachers, stats }
         if (Array.isArray(teachersData)) {
           setTeachers(teachersData)
+        } else if (teachersData && Array.isArray(teachersData.teachers)) {
+          setTeachers(teachersData.teachers)
+        }
+        if (Array.isArray(gradeSectionsData)) {
+          setGradeSections(gradeSectionsData)
         }
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -170,6 +202,94 @@ export default function AdminClassesPage() {
       trend: { value: 5, isPositive: true }
     }
   ]
+
+  const handleCreateClass = async (newClassData: Partial<AdminClassData>) => {
+    try {
+      const response = await fetch('/api/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newClassData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al crear la clase');
+      }
+
+      const respJson = await response.json();
+  const createdClass = respJson?.class || respJson;
+  createdClass.currentStudents = createdClass.enrolledStudents ?? createdClass.currentStudents ?? 0
+  setClasses(prev => [...prev, createdClass]);
+      toast({
+        title: 'Clase creada',
+        description: `La clase ${createdClass.name} ha sido creada exitosamente.`,
+      });
+    } catch (error) {
+      console.error('Error al crear clase:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditClass = async (updatedClassData: Partial<AdminClassData>) => {
+    try {
+      const response = await fetch(`/api/classes/${updatedClassData.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedClassData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al actualizar la clase');
+      }
+
+      const resp = await response.json();
+  const updatedClass = resp?.class || resp;
+  updatedClass.currentStudents = updatedClass.enrolledStudents ?? updatedClass.currentStudents ?? 0
+  setClasses(prev => prev.map(c => (c.id === updatedClass.id ? updatedClass : c)));
+      toast({
+        title: 'Clase actualizada',
+        description: `La clase ${updatedClass.name} ha sido actualizada exitosamente.`,
+      });
+    } catch (error) {
+      console.error('Error al actualizar clase:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteClass = async (classId: string) => {
+    try {
+      const response = await fetch(`/api/classes/${classId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al eliminar la clase');
+      }
+
+      setClasses(prev => prev.filter(c => c.id !== classId));
+      toast({
+        title: 'Clase eliminada',
+        description: 'La clase ha sido eliminada exitosamente.',
+      });
+    } catch (error) {
+      console.error('Error al eliminar clase:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
 
   if (status === 'loading' || loading) {
     return (
@@ -264,6 +384,7 @@ export default function AdminClassesPage() {
                     <TableHead>Clase</TableHead>
                     <TableHead>Materia</TableHead>
                     <TableHead>Profesor</TableHead>
+                    <TableHead>Horario</TableHead>
                     <TableHead>Estudiantes</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
@@ -293,6 +414,11 @@ export default function AdminClassesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        <div className="text-sm text-muted-foreground">
+                          {classItem.schedules && classItem.schedules.length > 0 ? classItem.schedules.join(', ') : '—'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-muted-foreground" />
                           <span>{classItem.currentStudents || 0}/{classItem.maxStudents}</span>
@@ -313,12 +439,20 @@ export default function AdminClassesPage() {
                             size="sm"
                             onClick={() => {
                               setSelectedClass(classItem)
+                              // prefill edit form
+                              setEditName(classItem.name)
+                              setEditMaxStudents(classItem.maxStudents)
+                              setEditGradeSectionLabel(`${classItem.grade} - Sección ${classItem.section}`)
                               setIsEditDialogOpen(true)
                             }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteClass(classItem.id)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -344,77 +478,93 @@ export default function AdminClassesPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="className">Nombre de la Clase</Label>
-              <Input id="className" placeholder="Ej: Matemáticas 3° A" />
+              <Input id="className" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Ej: Matemáticas 3° A" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="grade">Grado</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar grado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1er Grado">1er Grado</SelectItem>
-                    <SelectItem value="2do Grado">2do Grado</SelectItem>
-                    <SelectItem value="3er Grado">3er Grado</SelectItem>
-                    <SelectItem value="4to Grado">4to Grado</SelectItem>
-                    <SelectItem value="5to Grado">5to Grado</SelectItem>
-                    <SelectItem value="6to Grado">6to Grado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="section">Sección</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar sección" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="A">Sección A</SelectItem>
-                    <SelectItem value="B">Sección B</SelectItem>
-                    <SelectItem value="C">Sección C</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="gradeSection">Grado - Sección</Label>
+              <Input
+                id="gradeSection"
+                list="gradeSections"
+                value={createGradeSectionLabel}
+                onChange={(e) => setCreateGradeSectionLabel(e.target.value)}
+                placeholder="Seleccione una combinación de Grado - Sección"
+              />
+              <datalist id="gradeSections">
+                {gradeSections.map(gs => (
+                  <option key={gs.id} value={`${gs.grade.name} - Sección ${gs.section.name}`} />
+                ))}
+              </datalist>
             </div>
             <div>
               <Label htmlFor="subject">Materia</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar materia" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.id}>
-                      {subject.name} ({subject.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SubjectCombobox
+                subjects={subjects}
+                value={createSubjectId}
+                onValueChange={(val) => {
+                  setCreateSubjectId(val)
+                  // when subject changes, clear teacher selection so it can be filtered
+                  setCreateTeacherId('')
+                }}
+              />
             </div>
             <div>
               <Label htmlFor="teacher">Profesor</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar profesor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.firstName} {teacher.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <UserCombobox
+                users={teachers
+                  .filter(t => !createSubjectId || (t as any).subjects?.some((s: any) => s.id === createSubjectId))
+                  .map((t: any) => ({ id: t.id, name: `${t.firstName} ${t.lastName}`, email: (t as any).user?.email || t.email || '', role: 'TEACHER' }))}
+                value={createTeacherId}
+                onValueChange={(val) => setCreateTeacherId(val)}
+                placeholder="Buscar profesor por nombre"
+                emptyMessage="No se encontraron profesores para esta materia"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Horarios</Label>
+              {createSchedules.map((s, idx) => (
+                <div key={idx} className="grid grid-cols-4 gap-2 items-end">
+                  <div>
+                    <Label className="text-sm">Día</Label>
+                    <select className="w-full rounded-md border p-2" value={s.dayOfWeek} onChange={(e) => {
+                      const next = [...createSchedules]; next[idx].dayOfWeek = e.target.value; setCreateSchedules(next)
+                    }}>
+                      <option value="1">Lun</option>
+                      <option value="2">Mar</option>
+                      <option value="3">Mie</option>
+                      <option value="4">Jue</option>
+                      <option value="5">Vie</option>
+                      <option value="6">Sab</option>
+                      <option value="7">Dom</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-sm">Inicio</Label>
+                    <Input type="time" value={s.startTime} onChange={(e) => { const next = [...createSchedules]; next[idx].startTime = e.target.value; setCreateSchedules(next) }} />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Fin</Label>
+                    <Input type="time" value={s.endTime} onChange={(e) => { const next = [...createSchedules]; next[idx].endTime = e.target.value; setCreateSchedules(next) }} />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Aula</Label>
+                    <Input value={s.room || ''} onChange={(e) => { const next = [...createSchedules]; next[idx].room = e.target.value; setCreateSchedules(next) }} placeholder="Opcional" />
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setCreateSchedules(prev => [...prev, { dayOfWeek: '1', startTime: '08:00', endTime: '09:00', room: '' }])}>Agregar horario</Button>
+                <Button variant="outline" onClick={() => setCreateSchedules([])}>Limpiar horarios</Button>
+              </div>
             </div>
             <div>
               <Label htmlFor="maxStudents">Capacidad Máxima</Label>
               <Input 
                 id="maxStudents" 
                 type="number" 
-                placeholder="30" 
-                min="1" 
-                max="50" 
+                value={createMaxStudents}
+                onChange={(e) => setCreateMaxStudents(Number(e.target.value))}
+                min={1}
+                max={50}
               />
             </div>
           </div>
@@ -422,12 +572,45 @@ export default function AdminClassesPage() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => {
-              toast({
-                title: "Clase creada",
-                description: "La clase ha sido creada exitosamente",
-              })
+            <Button onClick={async () => {
+              // find selected gradeSection
+              const gs = gradeSections.find(g => `${g.grade.name} - Sección ${g.section.name}` === createGradeSectionLabel)
+              if (!gs) {
+                toast({ title: 'Error', description: 'Seleccione una combinación válida de grado y sección', variant: 'destructive' })
+                return
+              }
+              // resolve subject and teacher ids from combobox selection
+              const subj = subjects.find(s => s.id === createSubjectId)
+              const teacherObj = teachers.find(t => t.id === createTeacherId)
+              if (!createName || !subj || !teacherObj) {
+                toast({ title: 'Error', description: 'Complete los campos requeridos (nombre, materia, profesor)', variant: 'destructive' })
+                return
+              }
+              // prepare schedules payload
+              const schedulesPayload = createSchedules.map(s => ({
+                dayOfWeek: s.dayOfWeek,
+                startTime: s.startTime,
+                endTime: s.endTime,
+                room: s.room || null
+              }))
+
+              await handleCreateClass({
+                name: createName,
+                subjectId: subj.id,
+                teacherId: teacherObj.id,
+                gradeId: gs.grade.id,
+                sectionId: gs.section.id,
+                maxStudents: createMaxStudents,
+                schedules: schedulesPayload
+              } as any)
               setIsCreateDialogOpen(false)
+              // reset simple form
+              setCreateName('')
+              setCreateGradeSectionLabel('')
+              setCreateSubjectId('')
+              setCreateTeacherId('')
+              setCreateSchedules([])
+              setCreateMaxStudents(30)
             }}>
               Crear Clase
             </Button>
@@ -449,60 +632,56 @@ export default function AdminClassesPage() {
               <Label htmlFor="editClassName">Nombre de la Clase</Label>
               <Input 
                 id="editClassName" 
-                defaultValue={selectedClass?.name}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="editGrade">Grado</Label>
-                <Select defaultValue={selectedClass?.grade}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1er Grado">1er Grado</SelectItem>
-                    <SelectItem value="2do Grado">2do Grado</SelectItem>
-                    <SelectItem value="3er Grado">3er Grado</SelectItem>
-                    <SelectItem value="4to Grado">4to Grado</SelectItem>
-                    <SelectItem value="5to Grado">5to Grado</SelectItem>
-                    <SelectItem value="6to Grado">6to Grado</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="editGradeSection"
+                  list="gradeSections"
+                  value={editGradeSectionLabel}
+                  onChange={(e) => setEditGradeSectionLabel(e.target.value)}
+                />
+                <datalist id="gradeSections">
+                  {gradeSections.map(gs => (
+                    <option key={gs.id} value={`${gs.grade.name} - Sección ${gs.section.name}`} />
+                  ))}
+                </datalist>
               </div>
               <div>
-                <Label htmlFor="editSection">Sección</Label>
-                <Select defaultValue={selectedClass?.section}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="A">Sección A</SelectItem>
-                    <SelectItem value="B">Sección B</SelectItem>
-                    <SelectItem value="C">Sección C</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="editMaxStudents">Capacidad Máxima</Label>
+                <Input
+                  id="editMaxStudents"
+                  type="number"
+                  value={editMaxStudents}
+                  onChange={(e) => setEditMaxStudents(Number(e.target.value))}
+                  min={1}
+                  max={50}
+                />
               </div>
-            </div>
-            <div>
-              <Label htmlFor="editMaxStudents">Capacidad Máxima</Label>
-              <Input 
-                id="editMaxStudents" 
-                type="number" 
-                defaultValue={selectedClass?.maxStudents}
-                min="1" 
-                max="50" 
-              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => {
-              toast({
-                title: "Clase actualizada",
-                description: "Los cambios han sido guardados",
-              })
+            <Button onClick={async () => {
+              if (!selectedClass) return
+              const gs = gradeSections.find(g => `${g.grade.name} - Sección ${g.section.name}` === editGradeSectionLabel)
+              if (!gs) {
+                toast({ title: 'Error', description: 'Seleccione una combinación válida de grado y sección', variant: 'destructive' })
+                return
+              }
+              await handleEditClass({
+                id: selectedClass.id,
+                name: editName,
+                gradeId: gs.grade.id,
+                sectionId: gs.section.id,
+                maxStudents: editMaxStudents
+              } as any)
               setIsEditDialogOpen(false)
             }}>
               Guardar Cambios

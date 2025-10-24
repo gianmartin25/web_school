@@ -56,8 +56,13 @@ export async function POST(request: NextRequest) {
       },
       include: {
         subject: true,
-        academicGrade: true,
-        academicSection: true
+        grade: true,
+        section: true,
+        classStudents: {
+          include: {
+            student: true
+          }
+        }
       }
     })
 
@@ -89,7 +94,7 @@ export async function POST(request: NextRequest) {
 
       // Validar que todos los estudiantes pertenecen a la clase
       const studentIds = attendanceRecords.map((record) => record.studentId)
-      const validStudents = await tx.student.findMany({
+      const validStudents = await tx.studentProfile.findMany({
         where: {
           id: { in: studentIds },
           classes: {
@@ -147,13 +152,13 @@ export async function POST(request: NextRequest) {
       excused: result.attendances.filter(a => a.status === 'EXCUSED').length
     }
 
-    return NextResponse.json({
+      return NextResponse.json({
       message: 'Asistencia registrada exitosamente',
       class: {
         id: classData.id,
         subject: classData.subject.name,
-        grade: classData.academicGrade?.name || classData.grade,
-        section: classData.academicSection?.name || classData.section
+        grade: classData.grade?.name || '',
+        section: classData.section?.name || ''
       },
       date: attendanceDate.toISOString().split('T')[0],
       stats,
@@ -213,9 +218,9 @@ export async function GET(request: NextRequest) {
       },
       include: {
         subject: true,
-        academicGrade: true,
-        academicSection: true,
-        students: {
+        grade: true,
+        section: true,
+        classStudents: {
           include: {
             student: true
           },
@@ -262,7 +267,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Formatear respuesta con todos los estudiantes
-    const studentsWithAttendance = classData.students.map(classStudent => {
+    const studentsWithAttendance = classData.classStudents.map(classStudent => {
       const student = classStudent.student
       const attendance = attendanceMap.get(student.id)
       return {
@@ -285,8 +290,8 @@ export async function GET(request: NextRequest) {
       class: {
         id: classData.id,
         subject: classData.subject.name,
-        grade: classData.academicGrade?.name || classData.grade,
-        section: classData.academicSection?.name || classData.section
+        grade: classData.grade?.name || '',
+        section: classData.section?.name || ''
       },
       date: attendanceDate.toISOString().split('T')[0],
       students: studentsWithAttendance,

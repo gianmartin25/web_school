@@ -85,8 +85,8 @@ model User {
   studentProfile StudentProfile?
 
   // Notifications and messages
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
   notifications    Notification[]
   userSettings     UserSettings?
 
@@ -94,68 +94,104 @@ model User {
 }
 
 model TeacherProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  employeeId  String   @unique
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  employeeId  String    @unique
   firstName   String
   lastName    String
   phone       String?
   address     String?
   dateOfBirth DateTime?
-  hireDate    DateTime @default(now())
+  hireDate    DateTime  @default(now())
   salary      Float?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean   @default(true)
 
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Dashboard metrics
+  totalStudents Int    @default(0) // Total de estudiantes asignados
+  totalClasses  Int    @default(0) // Total de clases que enseña
+  experience    Int? // Años de experiencia
+  averageRating Float? // Calificación promedio (si hay evaluaciones)
+  totalSubjects Int    @default(0) // Total de materias asignadas
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   subjects     Subject[]
   classes      Class[]
   grades       Grade[]
   attendances  Attendance[]
   observations Observation[]
+  assignments  Assignment[] // ✅ AGREGADO: Relación con tareas
 
   @@map("teacher_profiles")
 }
 
 model ParentProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
+  id          String    @id @default(cuid())
+  userId      String    @unique
   firstName   String
   lastName    String
   phone       String
   address     String?
   dateOfBirth DateTime?
   occupation  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  children Student[]
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children StudentProfile[]
 
   @@map("parent_profiles")
 }
 
 model StudentProfile {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  studentId     String   @unique
-  firstName     String
-  lastName      String
-  dateOfBirth   DateTime
-  grade         String   // Mantener por compatibilidad
-  section       String?  // Mantener por compatibilidad
-  gradeId       String?  // Nueva relación
-  sectionId     String?  // Nueva relación
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  studentId      String   @unique
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime
+  gradeId        String // Relación con grado académico
+  sectionId      String // Relación con sección
+  parentId       String // Relación con parent
   enrollmentDate DateTime @default(now())
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  isActive       Boolean  @default(true)
 
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  academicGrade  AcademicGrade? @relation(fields: [gradeId], references: [id])
-  academicSection Section?      @relation(fields: [sectionId], references: [id])
-  
+  // Dashboard metrics
+  currentGPA     Float? // Promedio general actual
+  attendanceRate Float? // Porcentaje de asistencia
+  behaviorScore  Int     @default(100) // Puntaje de comportamiento
+  totalCredits   Int     @default(0) // Créditos totales
+  parentContact  String? // Teléfono principal del padre
+
+  // ✅ AGREGADO: Campos adicionales importantes
+  emergencyContact String? // Contacto de emergencia
+  medicalNotes     String? // Notas médicas importantes
+  allergies        String? // Alergias conocidas
+  bloodType        String? // Tipo de sangre
+  address          String? // Dirección del estudiante
+
+  // ✅ AGREGADO: Estado académico
+  academicStatus String    @default("REGULAR") // REGULAR, PROBATION, HONOR_ROLL
+  graduationDate DateTime? // Fecha esperada de graduación
+  specialNeeds   String? // Necesidades especiales
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  academicGrade   AcademicGrade @relation(fields: [gradeId], references: [id])
+  academicSection Section       @relation(fields: [sectionId], references: [id])
+  parent          ParentProfile @relation(fields: [parentId], references: [id])
+
+  // Relations previously from Student model
+  classes               ClassStudent[]
+  grades                Grade[]
+  attendances           Attendance[]
+  observations          Observation[]
+  assignmentSubmissions AssignmentSubmission[] // ✅ AGREGADO: Relación con entregas
+
   @@map("student_profiles")
 }
 
@@ -170,7 +206,6 @@ model AcademicGrade {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  students        Student[]
   studentProfiles StudentProfile[]
   classes         Class[]
   sections        GradeSection[]
@@ -187,7 +222,6 @@ model Section {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  students        Student[]
   studentProfiles StudentProfile[]
   classes         Class[]
   gradeSections   GradeSection[]
@@ -212,33 +246,42 @@ model GradeSection {
   @@map("grade_sections")
 }
 
-// Academic Models
-model Student {
-  id             String   @id @default(cuid())
-  studentId      String   @unique
-  firstName      String
-  lastName       String
-  dateOfBirth    DateTime
-  grade          String   // Mantener por compatibilidad
-  section        String?  // Mantener por compatibilidad
-  gradeId        String?  // Nueva relación
-  sectionId      String?  // Nueva relación
-  enrollmentDate DateTime @default(now())
-  parentId       String
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+// Academic Period Management
+model AcademicPeriod {
+  id           String   @id @default(cuid())
+  name         String // "Q1 2025", "Trimestre 1", "Semestre 1"
+  type         String // "QUARTER", "SEMESTER", "TRIMESTER", "BIMESTER"
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean  @default(false)
+  isCurrent    Boolean  @default(false) // Solo un período puede ser current
+  academicYear String // "2025", "2024-2025"
+  order        Int // 1, 2, 3, 4 para ordenar períodos
 
-  parent         ParentProfile  @relation(fields: [parentId], references: [id])
-  academicGrade  AcademicGrade? @relation(fields: [gradeId], references: [id])
-  academicSection Section?      @relation(fields: [sectionId], references: [id])
-  classes        ClassStudent[]
-  grades         Grade[]
-  attendances    Attendance[]
-  observations   Observation[]
+  // ✅ AGREGADO: Campos adicionales importantes
+  description       String? // Descripción del período
+  gradesDueDate     DateTime? // Fecha límite para ingreso de calificaciones
+  reportCardDate    DateTime? // Fecha de entrega de libretas
+  parentMeetingDate DateTime? // Fecha de reunión de padres
 
-  @@map("students")
+  // ✅ AGREGADO: Configuración del período
+  minPassingGrade Float   @default(11.0) // Nota mínima aprobatoria
+  maxGrade        Float   @default(20.0) // Nota máxima
+  allowLateGrades Boolean @default(false) // Permitir calificaciones tardías
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  grades      Grade[]
+  attendances Attendance[]
+  schedules   Schedule[] // ✅ AGREGADO: Relación con horarios
+
+  @@unique([academicYear, type, order])
+  @@map("academic_periods")
 }
+
+// Academic Models - Student functionality moved to StudentProfile
 
 model Subject {
   id          String   @id @default(cuid())
@@ -259,30 +302,29 @@ model Subject {
 }
 
 model Class {
-  id          String   @id @default(cuid())
-  name        String
-  grade       String   // Mantener por compatibilidad
-  section     String   // Mantener por compatibilidad
-  gradeId     String?  // Nueva relación
-  sectionId   String?  // Nueva relación
+  id           String   @id @default(cuid())
+  name         String
+  subjectId    String
+  teacherId    String
+  gradeId      String
+  sectionId    String
   academicYear String
-  maxStudents Int      @default(30)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  maxStudents  Int      @default(30)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  teacherId String
-  teacher   TeacherProfile @relation(fields: [teacherId], references: [id])
-  subjectId String
-  subject   Subject        @relation(fields: [subjectId], references: [id])
-  academicGrade  AcademicGrade? @relation(fields: [gradeId], references: [id])
-  academicSection Section?      @relation(fields: [sectionId], references: [id])
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  teacher     TeacherProfile @relation(fields: [teacherId], references: [id])
+  grade       AcademicGrade @relation(fields: [gradeId], references: [id])
+  section     Section  @relation(fields: [sectionId], references: [id])
+  schedules   Schedule[]
+  classStudents ClassStudent[]
+  grades       Grade[]
+  attendances  Attendance[]
+  metrics      ClassMetrics[]
+  assignments  Assignment[]
 
-  students    ClassStudent[]
-  grades      Grade[]
-  attendances Attendance[]
-
-  @@unique([name, grade, section, academicYear])
   @@map("classes")
 }
 
@@ -292,8 +334,8 @@ model ClassStudent {
   studentId String
   createdAt DateTime @default(now())
 
-  class   Class   @relation(fields: [classId], references: [id])
-  student Student @relation(fields: [studentId], references: [id])
+  class   Class          @relation(fields: [classId], references: [id])
+  student StudentProfile @relation(fields: [studentId], references: [id])
 
   @@unique([classId, studentId])
   @@map("class_students")
@@ -311,25 +353,39 @@ enum GradeType {
 }
 
 model Grade {
-  id          String    @id @default(cuid())
-  studentId   String
-  subjectId   String
-  teacherId   String
-  classId     String?
-  gradeType   GradeType
-  score       Float
-  maxScore    Float     @default(100)
-  percentage  Float?
-  letterGrade String?
-  comments    String?
-  gradeDate   DateTime  @default(now())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  studentId        String
+  subjectId        String
+  teacherId        String
+  classId          String?
+  academicPeriodId String // ✅ CORREGIDO: Hacer obligatorio
+  gradeType        GradeType
+  score            Float
+  maxScore         Float     @default(100)
+  percentage       Float? // ✅ Calculado automáticamente
+  letterGrade      String? // ✅ Calculado automáticamente  
+  comments         String?
+  gradeDate        DateTime  @default(now())
 
-  student Student        @relation(fields: [studentId], references: [id])
-  subject Subject        @relation(fields: [subjectId], references: [id])
-  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
-  class   Class?         @relation(fields: [classId], references: [id])
+  // Additional fields for better grading system
+  term          String  @default("Q1") // ✅ CORREGIDO: Valor por defecto
+  weight        Float   @default(1.0) // Peso de la calificación
+  isExtraCredit Boolean @default(false) // Crédito extra
+  rubricId      String? // ID de rúbrica (para futuro)
+
+  // ✅ AGREGADO: Validaciones de negocio
+  isValid    Boolean   @default(true) // Para marcar calificaciones válidas
+  reviewedBy String? // ID del revisor (opcional)
+  reviewDate DateTime? // Fecha de revisión
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student        StudentProfile  @relation(fields: [studentId], references: [id])
+  subject        Subject         @relation(fields: [subjectId], references: [id])
+  teacher        TeacherProfile  @relation(fields: [teacherId], references: [id])
+  class          Class?          @relation(fields: [classId], references: [id])
+  academicPeriod AcademicPeriod? @relation(fields: [academicPeriodId], references: [id])
 
   @@map("grades")
 }
@@ -343,19 +399,21 @@ enum AttendanceStatus {
 }
 
 model Attendance {
-  id        String           @id @default(cuid())
-  studentId String
-  classId   String
-  teacherId String
-  date      DateTime
-  status    AttendanceStatus
-  notes     String?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  studentId        String
+  classId          String
+  teacherId        String
+  academicPeriodId String? // Relación con período académico
+  date             DateTime
+  status           AttendanceStatus
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  student Student        @relation(fields: [studentId], references: [id])
-  class   Class          @relation(fields: [classId], references: [id])
-  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
+  student        StudentProfile  @relation(fields: [studentId], references: [id])
+  class          Class           @relation(fields: [classId], references: [id])
+  teacher        TeacherProfile  @relation(fields: [teacherId], references: [id])
+  academicPeriod AcademicPeriod? @relation(fields: [academicPeriodId], references: [id])
 
   @@unique([studentId, classId, date])
   @@map("attendances")
@@ -374,7 +432,7 @@ model Observation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  student Student        @relation(fields: [studentId], references: [id])
+  student StudentProfile @relation(fields: [studentId], references: [id])
   teacher TeacherProfile @relation(fields: [teacherId], references: [id])
 
   @@map("observations")
@@ -390,19 +448,35 @@ enum MessageType {
   MEETING_REQUEST
 }
 
-model Message {
-  id        String      @id @default(cuid())
-  senderId  String
-  receiverId String
-  subject   String
-  content   String
-  type      MessageType @default(GENERAL)
-  isRead    Boolean     @default(false)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
 
-  sender   User @relation("SentMessages", fields: [senderId], references: [id])
-  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+model Message {
+  id          String      @id @default(cuid())
+  senderId    String
+  receiverId  String?     // Opcional para mensajes broadcast
+  subject     String
+  content     String
+  type        MessageType @default(GENERAL)
+  isRead      Boolean     @default(false)
+  isBroadcast Boolean     @default(false) // Para comunicaciones masivas
+  targetRole  UserRole?   // Rol destinatario para broadcast (opcional)
+  priority    Priority    @default(MEDIUM)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Threading fields for conversations
+  threadId    String?     // ID del hilo de conversación
+  replyToId   String?     // ID del mensaje al que responde
+  
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User?       @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  replyTo     Message?    @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("MessageReplies")
 
   @@map("messages")
 }
@@ -473,23 +547,128 @@ model SchoolSettings {
 
 // User Settings
 model UserSettings {
-  id                 String  @id @default(cuid())
-  userId             String  @unique
-  theme              String  @default("light")
-  language           String  @default("es")
-  timezone           String  @default("America/Mexico_City")
-  emailNotifications Boolean @default(true)
-  pushNotifications  Boolean @default(true)
-  smsNotifications   Boolean @default(false)
-  digestFrequency    String  @default("weekly")
-  showFullName       Boolean @default(true)
-  showEmail          Boolean @default(false)
-  showPhone          Boolean @default(false)
-  twoFactorEnabled   Boolean @default(false)
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  theme              String   @default("light")
+  language           String   @default("es")
+  timezone           String   @default("America/Mexico_City")
+  emailNotifications Boolean  @default(true)
+  pushNotifications  Boolean  @default(true)
+  smsNotifications   Boolean  @default(false)
+  digestFrequency    String   @default("weekly")
+  showFullName       Boolean  @default(true)
+  showEmail          Boolean  @default(false)
+  showPhone          Boolean  @default(false)
+  twoFactorEnabled   Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
+}
+
+// System Metrics for Dashboard
+model SystemMetrics {
+  id                String   @id @default(cuid())
+  totalUsers        Int      @default(0)
+  totalStudents     Int      @default(0)
+  totalTeachers     Int      @default(0)
+  totalParents      Int      @default(0)
+  totalClasses      Int      @default(0)
+  activeClasses     Int      @default(0)
+  averageAttendance Float? // Porcentaje promedio de asistencia
+  averageGrade      Float? // Promedio general de calificaciones
+  systemUptime      Float? // Tiempo de actividad del sistema
+  lastCalculated    DateTime @default(now())
+  academicYear      String // Año académico de estas métricas
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("system_metrics")
+}
+
+// Class Metrics for detailed reporting
+model ClassMetrics {
+  id                String   @id @default(cuid())
+  classId           String   @unique
+  averageGrade      Float? // Promedio de calificaciones de la clase
+  attendanceRate    Float? // Porcentaje de asistencia promedio
+  totalStudents     Int      @default(0)
+  activeStudents    Int      @default(0)
+  gradeDistribution Json? // Distribución de calificaciones
+  lastUpdated       DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  class Class @relation(fields: [classId], references: [id])
+
+  @@map("class_metrics")
+}
+
+// ✅ AGREGADO: Tabla de Horarios/Cronogramas (IMPORTANTE para colegios)
+model Schedule {
+  id              String   @id @default(cuid())
+  classId         String
+  academicPeriodId String
+  dayOfWeek       String   // Ejemplo: "Monday", "Tuesday"
+  startTime       DateTime // Hora de inicio
+  endTime         DateTime // Hora de fin
+  room            String?  // Aula o sala donde se imparte la clase
+  notes           String?  // Notas adicionales sobre el horario
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  class           Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  academicPeriod  AcademicPeriod @relation(fields: [academicPeriodId], references: [id])
+
+  @@map("schedules")
+}
+
+// ✅ AGREGADO: Tabla de Tareas/Asignaciones (CRÍTICO para gestión académica)
+model Assignment {
+  id          String   @id @default(cuid())
+  classId     String
+  teacherId   String
+  title       String
+  description String?
+  dueDate     DateTime
+  maxScore    Float    @default(100)
+  weight      Float    @default(1.0)
+  type        String   @default("HOMEWORK") // HOMEWORK, PROJECT, EXAM, QUIZ
+  isActive    Boolean  @default(true)
+
+  // Configuración
+  allowLateSubmission Boolean @default(false)
+  latePenalty         Float? // Penalización por entrega tardía
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class       Class                  @relation(fields: [classId], references: [id])
+  teacher     TeacherProfile         @relation(fields: [teacherId], references: [id])
+  submissions AssignmentSubmission[]
+
+  @@map("assignments")
+}
+
+// ✅ AGREGADO: Tabla de Entregas de Tareas
+model AssignmentSubmission {
+  id           String    @id @default(cuid())
+  assignmentId String
+  studentId    String
+  submittedAt  DateTime?
+  score        Float?
+  feedback     String?
+  isLate       Boolean   @default(false)
+  status       String    @default("PENDING") // PENDING, SUBMITTED, GRADED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignment Assignment     @relation(fields: [assignmentId], references: [id])
+  student    StudentProfile @relation(fields: [studentId], references: [id])
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_submissions")
 }

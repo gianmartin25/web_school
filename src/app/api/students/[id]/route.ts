@@ -10,14 +10,32 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const student = await prisma.student.findUnique({
+    const student = await prisma.studentProfile.findUnique({
       where: { id },
       include: {
-        parent: true,
+        parent: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
         grades: {
           include: {
             subject: true,
-            teacher: true
+            teacher: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    email: true
+                  }
+                }
+              }
+            }
           }
         },
         attendances: true,
@@ -26,7 +44,16 @@ export async function GET(
             class: {
               include: {
                 subject: true,
-                teacher: true
+                teacher: {
+                  include: {
+                    user: {
+                      select: {
+                        name: true,
+                        email: true
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -75,9 +102,15 @@ export async function PUT(
     } = body
 
     // Verificar si el estudiante existe
-    const existingStudent = await prisma.student.findUnique({
+    const existingStudent = await prisma.studentProfile.findUnique({
       where: { id },
-      include: { parent: true }
+      include: { 
+        parent: {
+          include: {
+            user: true
+          }
+        }
+      }
     })
 
     if (!existingStudent) {
@@ -141,7 +174,7 @@ export async function PUT(
     }
 
     // Actualizar estudiante
-    const updatedStudent = await prisma.student.update({
+    const updatedStudent = await prisma.studentProfile.update({
       where: { id },
       data: {
         studentId,
@@ -149,8 +182,8 @@ export async function PUT(
         lastName,
         dateOfBirth: new Date(dateOfBirth),
         enrollmentDate: new Date(enrollmentDate),
-        grade,
-        section,
+        gradeId: grade, // Asumiendo que grade contiene el ID del grado
+        sectionId: section, // Asumiendo que section contiene el ID de la sección
         parentId,
         isActive,
       },
@@ -177,7 +210,7 @@ export async function DELETE(
   try {
     const { id } = await params
     // Verificar si el estudiante existe
-    const existingStudent = await prisma.student.findUnique({
+    const existingStudent = await prisma.studentProfile.findUnique({
       where: { id }
     })
 
@@ -206,7 +239,7 @@ export async function DELETE(
     })
 
     // Finalmente eliminar el estudiante
-    await prisma.student.delete({
+    await prisma.studentProfile.delete({
       where: { id }
     })
 

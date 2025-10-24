@@ -150,12 +150,7 @@
     background: rgba(0, 0, 0, 0.3);
   }
 
-  /* Prevenir que el contenido se mueva al hacer scroll */
-  .sidebar-fixed {
-    position: fixed;
-    will-change: transform;
-    backface-visibility: hidden;
-  }
+
 
   /* Animaciones institucionales */
   @keyframes fadeIn {

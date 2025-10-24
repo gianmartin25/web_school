@@ -31,9 +31,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             }
           }
         },
-        academicGrade: true,
-        academicSection: true,
-        students: {
+  grade: true,
+  section: true,
+        classStudents: {
           include: {
             student: {
               include: {
@@ -66,7 +66,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           orderBy: {
             date: 'desc'
           }
-        }
+        },
+        schedules: true
       }
     })
 
@@ -106,8 +107,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       class: {
         id: classItem.id,
         name: classItem.name,
-        grade: classItem.academicGrade?.name || classItem.grade || 'No asignado',
-        section: classItem.academicSection?.name || classItem.section || 'No asignado',
+  grade: classItem.grade?.name || classItem.grade || 'No asignado',
+  section: classItem.section?.name || classItem.section || 'No asignado',
         capacity: classItem.maxStudents,
         isActive: classItem.isActive,
         academicYear: classItem.academicYear,
@@ -121,17 +122,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           name: classItem.teacher.user.name,
           email: classItem.teacher.user.email
         } : null,
-        students: classItem.students.map((cs: { student: { id: string, firstName: string, lastName: string, studentId: string, parent: { user: { email: string } } } }) => ({
+        students: classItem.classStudents.map((cs: { student: { id: string, firstName: string, lastName: string, studentId: string, parent: { user: { email: string } } } }) => ({
           id: cs.student.id,
           name: `${cs.student.firstName} ${cs.student.lastName}`,
           email: cs.student.parent.user.email,
           studentId: cs.student.studentId
         })),
         stats: {
-          studentCount: classItem.students.length,
+          studentCount: classItem.classStudents.length,
           averageGrade: Math.round(avgGrade * 100) / 100,
           attendanceRate: Math.round(attendanceRate * 100) / 100
         },
+        schedules: classItem.schedules.map(s => ({
+          id: s.id,
+          dayOfWeek: s.dayOfWeek,
+          startTime: s.startTime instanceof Date ? s.startTime.toISOString().slice(11,16) : String(s.startTime),
+          endTime: s.endTime instanceof Date ? s.endTime.toISOString().slice(11,16) : String(s.endTime),
+          room: s.room,
+          notes: s.notes
+        })),
         createdAt: classItem.createdAt,
         updatedAt: classItem.updatedAt
       }
@@ -225,8 +234,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             }
           }
         },
-        academicGrade: true,
-        academicSection: true
+        grade: true,
+        section: true
       }
     })
 
@@ -234,8 +243,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       class: {
         id: updatedClass.id,
         name: updatedClass.name,
-        grade: updatedClass.academicGrade?.name || updatedClass.grade || 'No asignado',
-        section: updatedClass.academicSection?.name || updatedClass.section || 'No asignado',
+  grade: updatedClass.grade?.name || updatedClass.grade || 'No asignado',
+  section: updatedClass.section?.name || updatedClass.section || 'No asignado',
         capacity: updatedClass.maxStudents,
         academicYear: updatedClass.academicYear,
         isActive: updatedClass.isActive,
@@ -283,7 +292,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       include: {
         _count: {
           select: {
-            students: true,
+            classStudents: true,
             grades: true,
             attendances: true
           }
@@ -296,7 +305,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if class has students, grades, or attendance records
-    if (existingClass._count.students > 0 || existingClass._count.grades > 0 || existingClass._count.attendances > 0) {
+  if (existingClass._count.classStudents > 0 || existingClass._count.grades > 0 || existingClass._count.attendances > 0) {
       // Instead of deleting, mark as inactive
       await prisma.class.update({
         where: { id },

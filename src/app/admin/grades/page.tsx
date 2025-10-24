@@ -99,218 +99,121 @@ export default function AdminGradesManagementPage() {
     isActive: true
   })
 
-  // Mock data - En producción esto vendría de APIs
+  // Carga de datos inicial
   useEffect(() => {
-    const mockGrades: AcademicGrade[] = [
-      {
-        id: '1',
-        name: '1ro',
-        level: 1,
-        description: 'Primer grado de educación primaria',
-        isActive: true,
-        studentCount: 45,
-        classCount: 3,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      },
-      {
-        id: '2',
-        name: '2do',
-        level: 2,
-        description: 'Segundo grado de educación primaria',
-        isActive: true,
-        studentCount: 42,
-        classCount: 3,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      },
-      {
-        id: '3',
-        name: '3ro',
-        level: 3,
-        description: 'Tercer grado de educación primaria',
-        isActive: true,
-        studentCount: 38,
-        classCount: 2,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      },
-      {
-        id: '4',
-        name: '4to',
-        level: 4,
-        description: 'Cuarto grado de educación primaria',
-        isActive: true,
-        studentCount: 35,
-        classCount: 2,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      },
-      {
-        id: '5',
-        name: '5to',
-        level: 5,
-        description: 'Quinto grado de educación primaria',
-        isActive: true,
-        studentCount: 40,
-        classCount: 3,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      },
-      {
-        id: '6',
-        name: '6to',
-        level: 6,
-        description: 'Sexto grado de educación primaria',
-        isActive: false,
-        studentCount: 0,
-        classCount: 0,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      }
-    ]
+    const fetchData = async () => {
+      try {
+        const gradesResponse = await fetch('/api/academic-grades');
+        const sectionsResponse = await fetch('/api/sections');
+        const gradeSectionsResponse = await fetch('/api/grade-sections');
 
-    const mockSections: Section[] = [
-      {
-        id: '1',
-        name: 'A',
-        description: 'Sección A - Grupo principal',
-        isActive: true,
-        studentCount: 120,
-        classCount: 15,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      },
-      {
-        id: '2',
-        name: 'B',
-        description: 'Sección B - Grupo secundario',
-        isActive: true,
-        studentCount: 80,
-        classCount: 10,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      },
-      {
-        id: '3',
-        name: 'C',
-        description: 'Sección C - Grupo adicional',
-        isActive: true,
-        studentCount: 0,
-        classCount: 0,
-        createdAt: '2024-01-01',
-        updatedAt: '2024-10-01'
-      }
-    ]
+        if (!gradesResponse.ok || !sectionsResponse.ok || !gradeSectionsResponse.ok) {
+          throw new Error('Error al cargar datos desde el servidor');
+        }
 
-    const mockGradeSections: GradeSection[] = [
-      {
-        id: '1',
-        gradeId: '1',
-        sectionId: '1',
-        capacity: 25,
-        isActive: true,
-        currentStudents: 22,
-        grade: mockGrades[0],
-        section: mockSections[0]
-      },
-      {
-        id: '2',
-        gradeId: '1',
-        sectionId: '2',
-        capacity: 25,
-        isActive: true,
-        currentStudents: 23,
-        grade: mockGrades[0],
-        section: mockSections[1]
-      },
-      {
-        id: '3',
-        gradeId: '2',
-        sectionId: '1',
-        capacity: 25,
-        isActive: true,
-        currentStudents: 21,
-        grade: mockGrades[1],
-        section: mockSections[0]
-      },
-      {
-        id: '4',
-        gradeId: '5',
-        sectionId: '1',
-        capacity: 25,
-        isActive: true,
-        currentStudents: 22,
-        grade: mockGrades[4],
-        section: mockSections[0]
-      },
-      {
-        id: '5',
-        gradeId: '5',
-        sectionId: '2',
-        capacity: 25,
-        isActive: true,
-        currentStudents: 18,
-        grade: mockGrades[4],
-        section: mockSections[1]
-      }
-    ]
+        const gradesData = await gradesResponse.json();
+        const sectionsData = await sectionsResponse.json();
+        const gradeSectionsData = await gradeSectionsResponse.json();
 
-    setTimeout(() => {
-      setGrades(mockGrades)
-      setSections(mockSections)
-      setGradeSections(mockGradeSections)
-      setLoading(false)
-    }, 1000)
-  }, [])
+        setGrades(gradesData);
+        setSections(sectionsData);
+        setGradeSections(gradeSectionsData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error al cargar datos:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar los datos iniciales.',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchData();
+  }, [toast]);
+
+  const sortGradeSections = (sections: GradeSection[]) => {
+    return sections.sort((a, b) => {
+      const gradeA = a.grade?.name?.toLowerCase() || '';
+      const gradeB = b.grade?.name?.toLowerCase() || '';
+      const sectionA = a.section?.name?.toLowerCase() || '';
+      const sectionB = b.section?.name?.toLowerCase() || '';
+      return gradeA.localeCompare(gradeB) || sectionA.localeCompare(sectionB);
+    });
+  };
 
   // Grade CRUD operations
   const handleCreateGrade = () => {
-    const newGrade: AcademicGrade = {
-      id: (grades.length + 1).toString(),
-      name: gradeForm.name,
-      level: gradeForm.level,
-      description: gradeForm.description,
-      isActive: gradeForm.isActive,
-      studentCount: 0,
-      classCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-
-    setGrades([...grades, newGrade])
-    setShowGradeDialog(false)
-    resetGradeForm()
-    toast({
-      title: "Grado creado",
-      description: `El grado ${newGrade.name} ha sido creado exitosamente.`,
+    fetch('/api/academic-grades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: gradeForm.name,
+        level: gradeForm.level,
+        description: gradeForm.description
+      })
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Error al crear grado')
+        }
+        return res.json()
+      })
+      .then((created) => {
+        setGrades([...grades, { ...created, studentCount: 0, classCount: 0 }])
+        setShowGradeDialog(false)
+        resetGradeForm()
+        toast({
+          title: "Grado creado",
+          description: `El grado ${created.name} ha sido creado exitosamente.`,
+        })
+      })
+      .catch((err) => {
+        toast({
+          title: "Error",
+          description: err.message,
+          variant: "destructive"
+        })
+      })
   }
 
   const handleUpdateGrade = () => {
     if (!editingGrade) return
-
-    const updatedGrades = grades.map(g => 
-      g.id === editingGrade.id 
-        ? {
-            ...g,
-            name: gradeForm.name,
-            level: gradeForm.level,
-            description: gradeForm.description,
-            isActive: gradeForm.isActive,
-            updatedAt: new Date().toISOString()
-          }
-        : g
-    )
-
-    setGrades(updatedGrades)
-    setShowGradeDialog(false)
-    setEditingGrade(null)
-    resetGradeForm()
-    toast({
-      title: "Grado actualizado",
-      description: `El grado ${gradeForm.name} ha sido actualizado exitosamente.`,
+    fetch(`/api/academic-grades/${editingGrade.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: gradeForm.name,
+        level: gradeForm.level,
+        description: gradeForm.description,
+        isActive: gradeForm.isActive
+      })
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Error al actualizar grado')
+        }
+        return res.json()
+      })
+      .then((updated) => {
+        setGrades(grades.map(g => g.id === editingGrade.id ? { ...g, ...updated, updatedAt: new Date().toISOString() } : g))
+        setShowGradeDialog(false)
+        setEditingGrade(null)
+        resetGradeForm()
+        toast({
+          title: "Grado actualizado",
+          description: `El grado ${gradeForm.name} ha sido actualizado exitosamente.`,
+        })
+      })
+      .catch((err) => {
+        toast({
+          title: "Error",
+          description: err.message,
+          variant: "destructive"
+        })
+      })
   }
 
   const handleDeleteGrade = (gradeId: string) => {
@@ -333,49 +236,74 @@ export default function AdminGradesManagementPage() {
 
   // Section CRUD operations
   const handleCreateSection = () => {
-    const newSection: Section = {
-      id: (sections.length + 1).toString(),
-      name: sectionForm.name,
-      description: sectionForm.description,
-      isActive: sectionForm.isActive,
-      studentCount: 0,
-      classCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-
-    setSections([...sections, newSection])
-    setShowSectionDialog(false)
-    resetSectionForm()
-    toast({
-      title: "Sección creada",
-      description: `La sección ${newSection.name} ha sido creada exitosamente.`,
+    fetch('/api/sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: sectionForm.name,
+        description: sectionForm.description
+      })
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Error al crear sección')
+        }
+        return res.json()
+      })
+      .then((created) => {
+        setSections([...sections, { ...created, studentCount: 0, classCount: 0 }])
+        setShowSectionDialog(false)
+        resetSectionForm()
+        toast({
+          title: "Sección creada",
+          description: `La sección ${created.name} ha sido creada exitosamente.`,
+        })
+      })
+      .catch((err) => {
+        toast({
+          title: "Error",
+          description: err.message,
+          variant: "destructive"
+        })
+      })
   }
 
   const handleUpdateSection = () => {
     if (!editingSection) return
-
-    const updatedSections = sections.map(s => 
-      s.id === editingSection.id 
-        ? {
-            ...s,
-            name: sectionForm.name,
-            description: sectionForm.description,
-            isActive: sectionForm.isActive,
-            updatedAt: new Date().toISOString()
-          }
-        : s
-    )
-
-    setSections(updatedSections)
-    setShowSectionDialog(false)
-    setEditingSection(null)
-    resetSectionForm()
-    toast({
-      title: "Sección actualizada",
-      description: `La sección ${sectionForm.name} ha sido actualizada exitosamente.`,
+    fetch(`/api/sections/${editingSection.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: sectionForm.name,
+        description: sectionForm.description,
+        isActive: sectionForm.isActive
+      })
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Error al actualizar sección')
+        }
+        return res.json()
+      })
+      .then((updated) => {
+        setSections(sections.map(s => s.id === editingSection.id ? { ...s, ...updated, updatedAt: new Date().toISOString() } : s))
+        setShowSectionDialog(false)
+        setEditingSection(null)
+        resetSectionForm()
+        toast({
+          title: "Sección actualizada",
+          description: `La sección ${sectionForm.name} ha sido actualizada exitosamente.`,
+        })
+      })
+      .catch((err) => {
+        toast({
+          title: "Error",
+          description: err.message,
+          variant: "destructive"
+        })
+      })
   }
 
   const handleDeleteSection = (sectionId: string) => {
@@ -398,29 +326,70 @@ export default function AdminGradesManagementPage() {
 
   // GradeSection CRUD operations
   const handleCreateGradeSection = () => {
-    const grade = grades.find(g => g.id === gradeSectionForm.gradeId)
-    const section = sections.find(s => s.id === gradeSectionForm.sectionId)
-    
-    if (!grade || !section) return
+    const grade = grades.find(g => g.id === gradeSectionForm.gradeId);
+    const section = sections.find(s => s.id === gradeSectionForm.sectionId);
 
-    const newGradeSection: GradeSection = {
-      id: (gradeSections.length + 1).toString(),
-      gradeId: gradeSectionForm.gradeId,
-      sectionId: gradeSectionForm.sectionId,
-      capacity: gradeSectionForm.capacity,
-      isActive: gradeSectionForm.isActive,
-      currentStudents: 0,
-      grade,
-      section
+    if (!grade || !section) {
+      toast({
+        title: 'Error',
+        description: 'Grado o sección inválidos.',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    setGradeSections([...gradeSections, newGradeSection])
-    setShowGradeSectionDialog(false)
-    resetGradeSectionForm()
-    toast({
-      title: "Combinación creada",
-      description: `${grade.name}-${section.name} ha sido creada exitosamente.`,
+    fetch('/api/grade-sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gradeId: gradeSectionForm.gradeId,
+        sectionId: gradeSectionForm.sectionId,
+        capacity: gradeSectionForm.capacity,
+        isActive: gradeSectionForm.isActive,
+      }),
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Error al crear combinación');
+        }
+        return res.json();
+      })
+      .then((created) => {
+        setGradeSections(prev => {
+          if (!created.grade || !created.section) {
+            toast({
+              title: 'Error',
+              description: 'La respuesta del servidor es inválida. Faltan datos de grado o sección.',
+              variant: 'destructive',
+            });
+            return prev;
+          }
+          const exists = prev.some(gs => gs.grade.id === created.grade.id && gs.section.id === created.section.id);
+          if (exists) {
+            toast({
+              title: 'Advertencia',
+              description: 'La combinación ya existe.',
+              variant: 'default',
+            });
+            return prev;
+          }
+          return sortGradeSections([...prev, created]);
+        });
+        setShowGradeSectionDialog(false);
+        resetGradeSectionForm();
+        toast({
+          title: 'Combinación creada',
+          description: `${grade.name}-${section.name} ha sido creada exitosamente.`,
+        });
+      })
+      .catch((err) => {
+        toast({
+          title: 'Error',
+          description: err.message,
+          variant: 'destructive',
+        });
+      });
   }
 
   // Form reset functions
@@ -471,6 +440,27 @@ export default function AdminGradesManagementPage() {
     })
     setShowSectionDialog(true)
   }
+
+  const openCreateGradeDialog = () => {
+    setEditingGrade(null);
+    setGradeForm({
+      name: '',
+      level: 1,
+      description: '',
+      isActive: true
+    });
+    setShowGradeDialog(true);
+  };
+
+  const openCreateSectionDialog = () => {
+    setEditingSection(null);
+    setSectionForm({
+      name: '',
+      description: '',
+      isActive: true
+    });
+    setShowSectionDialog(true);
+  };
 
   // Access control
   if (session?.user?.role !== 'ADMIN') {
@@ -624,7 +614,7 @@ export default function AdminGradesManagementPage() {
               </div>
               <Dialog open={showGradeDialog} onOpenChange={setShowGradeDialog}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button onClick={openCreateGradeDialog}>
                     <Plus className="h-4 w-4 mr-2" />
                     Nuevo Grado
                   </Button>
@@ -757,7 +747,7 @@ export default function AdminGradesManagementPage() {
               </div>
               <Dialog open={showSectionDialog} onOpenChange={setShowSectionDialog}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button onClick={openCreateSectionDialog}>
                     <Plus className="h-4 w-4 mr-2" />
                     Nueva Sección
                   </Button>
@@ -965,9 +955,14 @@ export default function AdminGradesManagementPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {gradeSections
                   .filter(gs => 
-                    gs.grade.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    gs.section.name.toLowerCase().includes(searchTerm.toLowerCase())
+                    gs.grade?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    gs.section?.name?.toLowerCase().includes(searchTerm.toLowerCase())
                   )
+                  .sort((a, b) => {
+                    const gradeComparison = a.grade.name.localeCompare(b.grade.name);
+                    if (gradeComparison !== 0) return gradeComparison;
+                    return a.section.name.localeCompare(b.section.name);
+                  })
                   .map((gradeSection) => (
                   <Card key={gradeSection.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-4">

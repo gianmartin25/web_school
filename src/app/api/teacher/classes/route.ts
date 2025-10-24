@@ -37,7 +37,7 @@ export async function GET() {
       include: {
         subject: true,
         teacher: true,
-        students: {
+        classStudents: {
           include: {
             student: true
           }
@@ -56,23 +56,26 @@ export async function GET() {
           },
           take: 30 // Últimas asistencias para calcular estadísticas
         }
+        ,
+        grade: true,
+        section: true
       }
     })
 
     // Procesar datos para el frontend
     const processedClasses = classes.map(classItem => {
-      const enrolledStudents = classItem.students.length
+  const enrolledStudents = classItem.classStudents?.length || 0
       const maxStudents = classItem.maxStudents
       
       // Calcular promedio de calificaciones de la clase
-      const grades = classItem.grades
+  const grades = classItem.grades || []
       const averageGrade = grades.length > 0 
         ? grades.reduce((sum, grade) => sum + grade.score, 0) / grades.length 
         : 0
 
       // Calcular tasa de asistencia de la clase
-      const totalAttendances = classItem.attendances.length
-      const presentAttendances = classItem.attendances.filter(att => att.status === 'PRESENT').length
+  const totalAttendances = classItem.attendances?.length || 0
+  const presentAttendances = (classItem.attendances || []).filter(att => att.status === 'PRESENT').length
       const attendanceRate = totalAttendances > 0 
         ? (presentAttendances / totalAttendances) * 100 
         : 100
@@ -87,8 +90,8 @@ export async function GET() {
         id: classItem.id,
         name: classItem.name,
         subject: classItem.subject.name,
-        grade: classItem.grade,
-        section: classItem.section,
+        grade: classItem.grade?.name || '',
+        section: classItem.section?.name || '',
         enrolledStudents,
         maxStudents,
         schedule: 'Lunes, Miércoles, Viernes 8:00-9:00', // Simplificado

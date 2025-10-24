@@ -47,9 +47,9 @@ export async function GET(request: NextRequest) {
       },
       include: {
         subject: true,
-        academicGrade: true,
-        academicSection: true,
-        students: {
+        grade: true,
+        section: true,
+        classStudents: {
           include: {
             student: true
           },
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            students: true
+            classStudents: true
           }
         }
       }
@@ -104,16 +104,16 @@ export async function GET(request: NextRequest) {
           name: classItem.subject.name,
           code: classItem.subject.code
         },
-        grade: classItem.academicGrade?.name || classItem.grade,
-        section: classItem.academicSection?.name || classItem.section,
+        grade: classItem.grade?.name || '',
+        section: classItem.section?.name || '',
         academicYear: classItem.academicYear,
-        students: classItem.students.map(classStudent => ({
+        students: classItem.classStudents.map(classStudent => ({
           id: classStudent.student.id,
           studentId: classStudent.student.studentId,
           firstName: classStudent.student.firstName,
           lastName: classStudent.student.lastName
         })),
-        totalStudents: classItem._count.students,
+        totalStudents: classItem._count.classStudents,
         hasAttendanceToday,
         attendanceCount: existingAttendances.filter(a => a.classId === classItem.id).length
       }

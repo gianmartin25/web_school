@@ -77,7 +77,9 @@ export default function SignIn() {
               <Label htmlFor="email">Correo Electrónico</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="email"
                 placeholder="tu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

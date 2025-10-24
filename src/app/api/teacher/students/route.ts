@@ -21,16 +21,6 @@ interface AttendanceWithDetails {
   }
 }
 
-interface ClassStudentWithDetails {
-  class: {
-    subject: {
-      name: string
-    }
-    grade: string
-    section: string
-  }
-}
-
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -58,7 +48,7 @@ export async function GET() {
     }
 
     // Obtener todos los estudiantes de las clases del profesor
-    const students = await prisma.student.findMany({
+    const students = await prisma.studentProfile.findMany({
       where: {
         classes: {
           some: {
@@ -69,18 +59,40 @@ export async function GET() {
         }
       },
       include: {
-        parent: true,
+        parent: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        academicGrade: {
+          select: {
+            id: true,
+            name: true,
+            level: true
+          }
+        },
+        academicSection: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         classes: {
+          where: {
+            class: {
+              teacherId: teacherProfile.id
+            }
+          },
           include: {
             class: {
               include: {
                 subject: true
               }
-            }
-          },
-          where: {
-            class: {
-              teacherId: teacherProfile.id
             }
           }
         },
@@ -128,8 +140,8 @@ export async function GET() {
         : 100
 
       // Obtener clases del estudiante con este profesor
-      const classes = (student.classes as ClassStudentWithDetails[]).map((cs: ClassStudentWithDetails) => 
-        `${cs.class.subject.name} ${cs.class.grade} ${cs.class.section}`
+      const classes = student.classes.map((cs) => 
+        `${cs.class.subject.name} ${student.academicGrade?.name || ''} ${student.academicSection?.name || ''}`
       )
 
       // Última actividad (última asistencia o calificación)
@@ -153,18 +165,18 @@ export async function GET() {
         firstName: student.firstName,
         lastName: student.lastName,
         email: '', // Los estudiantes no tienen email en este modelo
-        grade: (student.classes as ClassStudentWithDetails[])[0]?.class.grade || student.grade,
-        section: (student.classes as ClassStudentWithDetails[])[0]?.class.section || student.section || '',
+        grade: student.academicGrade?.name || '',
+        section: student.academicSection?.name || '',
         classes,
         currentGrade: Number(averageGrade.toFixed(1)),
         attendanceRate: Number(attendanceRate.toFixed(0)),
         lastActivity: lastActivity.toISOString(),
         status: student.isActive ? 'active' : 'inactive',
         parentName: `${student.parent.firstName} ${student.parent.lastName}`,
-        parentEmail: '', // Necesitamos obtener el email del usuario padre
+        parentEmail: student.parent.user?.email || '',
         enrollmentDate: student.enrollmentDate.toISOString(),
         notes: '',
-        behaviorScore: 8, // Por defecto, esto podría venir de otra tabla
+        behaviorScore: student.behaviorScore || 100,
         homeworkCompletion: 90 // Por defecto, esto podría calcularse desde tareas
       }
     })

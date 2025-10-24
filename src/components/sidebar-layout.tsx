@@ -33,7 +33,6 @@ import {
   UserCheck,
   ClipboardList,
   Cog,
-  Send,
 } from "lucide-react"
 
 interface SidebarLayoutProps {
@@ -67,8 +66,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       return [
         ...commonItems,
         { href: "/parent/children", label: "Mis Hijos", icon: Users },
-        { href: "/grades", label: "Calificaciones", icon: BookOpen },
-        { href: "/attendance", label: "Asistencia", icon: Calendar },
+        { href: "/parent/grades", label: "Calificaciones", icon: BookOpen },
+        { href: "/parent/attendance", label: "Asistencia", icon: Calendar },
+        { href: "/communications", label: "Comunicaciones", icon: MessageSquare },
       ]
     }
 
@@ -78,18 +78,18 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         { href: "/teacher", label: "Dashboard", icon: Home },
         { href: "/teacher/classes", label: "Mis Clases", icon: GraduationCap },
         { href: "/teacher/students", label: "Mis Estudiantes", icon: Users },
-        { href: "/attendance", label: "Asistencia", icon: UserCheck },
-        { href: "/grades", label: "Calificaciones", icon: BookOpen },
+        { href: "/teacher/attendance", label: "Asistencia", icon: UserCheck },
+        { href: "/teacher/grades", label: "Calificaciones", icon: BookOpen },
+        { href: "/teacher/schedule", label: "Mi Horario", icon: Calendar },
+        { href: "/communications", label: "Comunicaciones", icon: MessageSquare },
       ]
     }
 
     if (role === "ADMIN") {
       return [
         ...commonItems,
-        // Comunicaciones
-        { href: "/admin/communications", label: "Comunicaciones", icon: Send },
-        { href: "/admin/messages", label: "Mensajes", icon: MessageSquare, badge: 3 },
-        { href: "/admin/notifications", label: "Notificaciones", icon: Bell, badge: 2 },
+        // Comunicaciones Unificadas
+        { href: "/communications", label: "Comunicaciones", icon: MessageSquare, badge: 5 },
         // Gestión de Entidades Principales
         { href: "/admin/students", label: "Estudiantes", icon: Users },
         { href: "/admin/teachers", label: "Profesores", icon: GraduationCap },
@@ -109,7 +109,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         { href: "/student/attendance", label: "Mi Asistencia", icon: Calendar },
         { href: "/student/schedule", label: "Mi Horario", icon: UserCheck },
         { href: "/student/homework", label: "Mis Tareas", icon: ClipboardList },
-        { href: "/student/messages", label: "Mensajes", icon: MessageSquare },
+        { href: "/communications", label: "Mensajes", icon: MessageSquare },
         { href: "/student/reports", label: "Reportes", icon: BarChart3 },
       ]
     }
@@ -208,8 +208,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:z-30">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 shadow-sm overflow-hidden sidebar-fixed">
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:z-40 lg:bg-white">
+        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 shadow-lg overflow-hidden">
           <SidebarContent />
         </div>
       </div>
@@ -236,7 +236,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-20 flex h-16 bg-white border-b border-gray-200 shadow-sm">
+        <div className="sticky top-0 z-30 flex h-16 bg-white border-b border-gray-200 shadow-sm">
           <button
             type="button"
             className="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden"

@@ -70,10 +70,30 @@ export interface StudentData {
   firstName: string
   lastName: string
   dateOfBirth: Date
-  grade: string
-  section?: string
+  gradeId: string
+  sectionId: string
+  parentId: string
   enrollmentDate: Date
   isActive: boolean
+  
+  // Dashboard metrics
+  currentGPA?: number
+  attendanceRate?: number
+  behaviorScore: number
+  totalCredits: number
+  parentContact?: string
+  
+  // Relations
+  academicGrade?: {
+    id: string
+    name: string
+    level: number
+  }
+  academicSection?: {
+    id: string
+    name: string
+  }
+  parent?: ParentData
 }
 
 export interface SubjectData {
