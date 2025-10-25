@@ -117,7 +117,8 @@ model TeacherProfile {
   updatedAt DateTime @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjects     Subject[]
+  // Relación muchos-a-muchos con Subject (nuevo join table)
+  teacherSubjects TeacherSubject[]
   classes      Class[]
   grades       Grade[]
   attendances  Attendance[]
@@ -293,12 +294,26 @@ model Subject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  teacherId String?
-  teacher   TeacherProfile? @relation(fields: [teacherId], references: [id])
+  // Relación muchos-a-muchos con TeacherProfile a través de TeacherSubject
+  teacherSubjects TeacherSubject[]
   classes   Class[]
   grades    Grade[]
 
   @@map("subjects")
+}
+
+// Join table para relación muchos-a-muchos Teacher <-> Subject
+model TeacherSubject {
+  id        String    @id @default(cuid())
+  teacherId String
+  subjectId String
+  createdAt DateTime  @default(now())
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+  @@map("teacher_subjects")
 }
 
 model Class {

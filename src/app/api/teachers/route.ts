@@ -21,7 +21,7 @@ export async function GET() {
       )
     }
 
-    // Obtener profesores con información completa
+    // Obtener profesores con información completa (incluyendo materias vía la tabla de unión)
     const teachers = await prisma.teacherProfile.findMany({
       include: {
         user: {
@@ -32,7 +32,11 @@ export async function GET() {
             role: true
           }
         },
-        subjects: true,
+        teacherSubjects: {
+          include: {
+            subject: true
+          }
+        },
         classes: true,
         _count: {
           select: {
@@ -211,40 +215,35 @@ export async function POST(request: NextRequest) {
           isActive: true
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true
-            }
-          },
-          subjects: true,
-          classes: true,
-          _count: {
-            select: {
-              grades: true,
-              attendances: true,
-              observations: true
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+              }
+            },
+            teacherSubjects: {
+              include: { subject: true }
+            },
+            classes: true,
+            _count: {
+              select: {
+                grades: true,
+                attendances: true,
+                observations: true
+              }
             }
           }
-        }
       })
 
       // Asignar materias si se proporcionaron
       if (subjectIds.length > 0) {
-        await tx.subject.updateMany({
-          where: {
-            id: {
-              in: subjectIds
-            }
-          },
-          data: {
-            teacherId: teacher.id
-          }
-        })
+        // Crear registros en la tabla de unión
+        const createData = subjectIds.map((sid: string) => ({ teacherId: teacher.id, subjectId: sid }))
+        await tx.teacherSubject.createMany({ data: createData, skipDuplicates: true })
 
-        // Recargar el profesor con las materias asignadas
+        // Recargar el profesor con las materias asignadas via teacherSubjects
         return await tx.teacherProfile.findUnique({
           where: { id: teacher.id },
           include: {
@@ -256,7 +255,7 @@ export async function POST(request: NextRequest) {
                 role: true
               }
             },
-            subjects: true,
+            teacherSubjects: { include: { subject: true } },
             classes: true,
             _count: {
               select: {

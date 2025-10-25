@@ -525,9 +525,12 @@ async function main() {
     for (const subjectName of teacher.subjectNames) {
       const subject = subjects.find(s => s.name === subjectName)
       if (subject) {
-        await prisma.subject.update({
-          where: { id: subject.id },
-          data: { teacherId: teacher.id }
+        // Crear registro en la tabla de unión TeacherSubject
+        await prisma.teacherSubject.create({
+          data: {
+            teacherId: teacher.id,
+            subjectId: subject.id,
+          }
         })
       }
     }

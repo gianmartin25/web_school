@@ -34,7 +34,7 @@ export async function GET(
             role: true
           }
         },
-        subjects: true,
+        teacherSubjects: { include: { subject: true } },
         classes: true,
         _count: {
           select: {
@@ -165,47 +165,22 @@ export async function PUT(
         }
       })
 
-      // Desasignar todas las materias actuales del profesor
-      await tx.subject.updateMany({
-        where: { teacherId: id },
-        data: { teacherId: null }
-      })
+      // Actualizar relaciones en la tabla de unión: eliminar actuales y crear las nuevas
+      await tx.teacherSubject.deleteMany({ where: { teacherId: id } })
 
-      // Asignar nuevas materias
       if (subjectIds.length > 0) {
-        await tx.subject.updateMany({
-          where: {
-            id: {
-              in: subjectIds
-            }
-          },
-          data: {
-            teacherId: id
-          }
-        })
+        const data = subjectIds.map((sid: string) => ({ teacherId: id, subjectId: sid }))
+        await tx.teacherSubject.createMany({ data, skipDuplicates: true })
       }
 
       // Recargar el profesor con toda la información
       return await tx.teacherProfile.findUnique({
         where: { id },
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true
-            }
-          },
-          subjects: true,
+          user: { select: { id: true, name: true, email: true, role: true } },
+          teacherSubjects: { include: { subject: true } },
           classes: true,
-          _count: {
-            select: {
-              grades: true,
-              attendances: true,
-              observations: true
-            }
-          }
+          _count: { select: { grades: true, attendances: true, observations: true } }
         }
       })
     })
@@ -256,11 +231,8 @@ export async function DELETE(
 
     // Eliminar en una transacción
     await prisma.$transaction(async (tx) => {
-      // Desasignar materias
-      await tx.subject.updateMany({
-        where: { teacherId: id },
-        data: { teacherId: null }
-      })
+      // Eliminar relaciones en la tabla de unión
+      await tx.teacherSubject.deleteMany({ where: { teacherId: id } })
 
       // Eliminar perfil de profesor
       await tx.teacherProfile.delete({

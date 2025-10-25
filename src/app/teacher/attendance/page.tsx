@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { SidebarLayout } from '@/components/sidebar-layout'
+// import eliminado: SidebarLayout
 import { toast } from '@/hooks/use-toast'
 import { 
   Users, 
@@ -247,19 +247,16 @@ function AttendancePageContent() {
 
   if (session?.user?.role !== 'TEACHER') {
     return (
-      <SidebarLayout>
-        <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500">Acceso denegado. Solo profesores pueden acceder a esta página.</p>
-        </div>
-      </SidebarLayout>
+      <div className="flex items-center justify-center h-full">
+        <p className="text-gray-500">Acceso denegado. Solo profesores pueden acceder a esta página.</p>
+      </div>
     )
   }
 
   const stats = getAttendanceStats()
 
   return (
-    <SidebarLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -464,8 +461,7 @@ function AttendancePageContent() {
           </Card>
         )}
       </div>
-    </SidebarLayout>
-  )
+    )
 }
 
 export default function AttendancePage() {

@@ -10,7 +10,7 @@ import { SubjectCombobox } from '@/components/subject-combobox'
 import { UserCombobox } from '@/components/user-combobox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+// Select component not used here; left out to avoid unused-import lint warnings
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from '@/hooks/use-toast'
 import { 
@@ -52,7 +52,7 @@ interface AdminClassData {
   }
   grade: string
   section: string
-  schedules?: string[]
+  schedules?: Array<{ dayOfWeek: string; startTime: string; endTime: string; room?: string | null }>
   enrolledStudents?: number
   academicYear: string
   maxStudents: number
@@ -74,14 +74,22 @@ interface Teacher {
   firstName: string
   lastName: string
   email: string
+  subjects?: Subject[]
+  user?: { email?: string }
 }
 
 export default function AdminClassesPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const [classes, setClasses] = useState<AdminClassData[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
-  const [gradeSections, setGradeSections] = useState<any[]>([])
+  interface GradeSection {
+    id: string
+    grade: { id: string; name: string }
+    section: { id: string; name: string }
+  }
+
+  const [gradeSections, setGradeSections] = useState<GradeSection[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGrade, setSelectedGrade] = useState<string>('')
@@ -122,22 +130,49 @@ export default function AdminClassesPage() {
 
         // classes endpoint may return { classes: [...], total }
         if (Array.isArray(classesData)) {
-          const mapped = classesData.map((c: any) => ({ ...c, currentStudents: c.enrolledStudents ?? c.currentStudents ?? 0 }))
+          const mapped = classesData.map((c: unknown) => {
+            const clazz = c as AdminClassData
+            clazz.currentStudents = (clazz.enrolledStudents ?? clazz.currentStudents ?? 0)
+            return clazz
+          })
           setClasses(mapped)
-        } else if (classesData && Array.isArray(classesData.classes)) {
-          const mapped = classesData.classes.map((c: any) => ({ ...c, currentStudents: c.enrolledStudents ?? c.currentStudents ?? 0 }))
-          setClasses(mapped)
+        } else if (classesData && typeof classesData === 'object') {
+          const container = classesData as { classes?: unknown[] }
+          if (Array.isArray(container.classes)) {
+            const mapped = container.classes.map((c: unknown) => {
+              const clazz = c as AdminClassData
+              clazz.currentStudents = (clazz.enrolledStudents ?? clazz.currentStudents ?? 0)
+              return clazz
+            })
+            setClasses(mapped)
+          }
         }
 
         if (Array.isArray(subjectsData)) {
           setSubjects(subjectsData)
         }
         // teachers endpoint may return { teachers, stats }
+        let normalizedTeachers: Teacher[] = []
         if (Array.isArray(teachersData)) {
-          setTeachers(teachersData)
+          // API returned an array directly
+          normalizedTeachers = (teachersData as any[]).map(t => ({
+            id: t.id,
+            firstName: t.firstName,
+            lastName: t.lastName,
+            email: t.user?.email ?? t.email ?? '',
+            subjects: Array.isArray(t.teacherSubjects) ? t.teacherSubjects.map((ts: any) => ts.subject).filter(Boolean) : (t.subjects ?? [])
+          }))
         } else if (teachersData && Array.isArray(teachersData.teachers)) {
-          setTeachers(teachersData.teachers)
+          normalizedTeachers = (teachersData.teachers as any[]).map(t => ({
+            id: t.id,
+            firstName: t.firstName,
+            lastName: t.lastName,
+            email: t.user?.email ?? t.email ?? '',
+            subjects: Array.isArray(t.teacherSubjects) ? t.teacherSubjects.map((ts: any) => ts.subject).filter(Boolean) : (t.subjects ?? [])
+          }))
         }
+
+        setTeachers(normalizedTeachers)
         if (Array.isArray(gradeSectionsData)) {
           setGradeSections(gradeSectionsData)
         }
@@ -511,8 +546,13 @@ export default function AdminClassesPage() {
               <Label htmlFor="teacher">Profesor</Label>
               <UserCombobox
                 users={teachers
-                  .filter(t => !createSubjectId || (t as any).subjects?.some((s: any) => s.id === createSubjectId))
-                  .map((t: any) => ({ id: t.id, name: `${t.firstName} ${t.lastName}`, email: (t as any).user?.email || t.email || '', role: 'TEACHER' }))}
+                  .filter(t => !createSubjectId || t.subjects?.some(s => s.id === createSubjectId))
+                  .map((t) => ({
+                    id: t.id,
+                    name: `${t.firstName ?? ''} ${t.lastName ?? ''}`.replace(/ +/g, ' ').trim(),
+                    email: t.user?.email ?? t.email ?? '',
+                    role: 'TEACHER'
+                  }))}
                 value={createTeacherId}
                 onValueChange={(val) => setCreateTeacherId(val)}
                 placeholder="Buscar profesor por nombre"
@@ -602,7 +642,7 @@ export default function AdminClassesPage() {
                 sectionId: gs.section.id,
                 maxStudents: createMaxStudents,
                 schedules: schedulesPayload
-              } as any)
+              })
               setIsCreateDialogOpen(false)
               // reset simple form
               setCreateName('')
@@ -681,7 +721,7 @@ export default function AdminClassesPage() {
                 gradeId: gs.grade.id,
                 sectionId: gs.section.id,
                 maxStudents: editMaxStudents
-              } as any)
+              })
               setIsEditDialogOpen(false)
             }}>
               Guardar Cambios

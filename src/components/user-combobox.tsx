@@ -59,14 +59,17 @@ export function UserCombobox({
 
   // Filtrar usuarios basándose en la búsqueda
   const filteredUsers = users.filter(user => {
-    if (!search) return true
-    const searchLower = search.toLowerCase()
+    if (!search) return true;
+    const searchLower = search.toLowerCase();
+    // Permitir búsqueda por nombre, apellido, nombre completo, email y rol
+    const nameParts = user.name ? user.name.toLowerCase().split(' ') : [];
     return (
-      user.name.toLowerCase().includes(searchLower) ||
+      nameParts.some(part => part.includes(searchLower)) ||
+      (user.name && user.name.toLowerCase().includes(searchLower)) ||
       user.email.toLowerCase().includes(searchLower) ||
       getRoleLabel(user.role).toLowerCase().includes(searchLower)
-    )
-  })
+    );
+  });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

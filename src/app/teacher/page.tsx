@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { SidebarLayout } from '@/components/sidebar-layout'
+// SidebarLayout is provided by the teacher layout; avoid double-rendering the sidebar here
 import { 
   BookOpen, 
   Users, 
@@ -99,18 +99,12 @@ export default function TeacherDashboard() {
   }
 
   if (session?.user?.role !== 'TEACHER') {
-    return (
-      <SidebarLayout>
-        <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500">Acceso denegado. Solo profesores pueden acceder a esta página.</p>
-        </div>
-      </SidebarLayout>
-    )
+    // Layout will handle redirect; render nothing if unauthorized
+    return null
   }
 
   return (
-    <SidebarLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -360,7 +354,6 @@ export default function TeacherDashboard() {
             </Link>
           </Card>
         </div>
-      </div>
-    </SidebarLayout>
+    </div>
   )
 }

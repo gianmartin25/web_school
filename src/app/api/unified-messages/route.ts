@@ -293,6 +293,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    // Debug: log incoming payload and user for troubleshooting
+    try {
+      console.log('[unified-messages] POST payload:', JSON.stringify(body))
+    } catch (e) {
+      console.log('[unified-messages] POST payload (non-serializable)')
+    }
     
     const {
       receiverId, // Para compatibilidad con respuestas
@@ -323,6 +329,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Debug: log session user
+    console.log('[unified-messages] user:', { id: session.user.id, role: session.user.role })
+
     // Normalizar destinatarios - soportar tanto receiverId (respuestas) como receiverIds (nuevos mensajes)
     let targetReceiverIds: string[] = []
     if (receiverId) {
@@ -337,6 +346,22 @@ export async function POST(request: NextRequest) {
         { error: 'Al menos un destinatario es requerido para mensajes directos' },
         { status: 400 }
       )
+    }
+
+    // Validate that all targetReceiverIds exist in the database to avoid Prisma connect failures
+    if (!isBroadcast && targetReceiverIds.length > 0) {
+      try {
+        const existingUsers = await prisma.user.findMany({ where: { id: { in: targetReceiverIds } }, select: { id: true } })
+        const existingIds = new Set(existingUsers.map(u => u.id))
+        const missing = targetReceiverIds.filter(id => !existingIds.has(id))
+        if (missing.length > 0) {
+          console.warn('[unified-messages] missing recipient ids:', missing)
+          return NextResponse.json({ error: `Algunos destinatarios no existen: ${missing.join(',')}` }, { status: 400 })
+        }
+      } catch (e) {
+        console.error('[unified-messages] error checking recipient ids:', e)
+        return NextResponse.json({ error: 'Error validando destinatarios' }, { status: 500 })
+      }
     }
 
     if (isBroadcast) {

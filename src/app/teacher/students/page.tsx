@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
-import { SidebarLayout } from "@/components/sidebar-layout"
+// import eliminado: SidebarLayout
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -156,14 +156,12 @@ export default function TeacherStudents() {
 
   if (status === "loading" || loading) {
     return (
-      <SidebarLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Cargando estudiantes...</p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando estudiantes...</p>
         </div>
-      </SidebarLayout>
+      </div>
     )
   }
 
@@ -173,13 +171,10 @@ export default function TeacherStudents() {
         <div className="flex items-center justify-center h-full">
           <p className="text-gray-500">Acceso denegado. Solo profesores pueden acceder a esta página.</p>
         </div>
-      </SidebarLayout>
-    )
-  }
-
-  return (
-    <SidebarLayout>
-      <div className="space-y-6">
+      <div className="flex items-center justify-center h-full">
+        <p className="text-gray-500">Acceso denegado. Solo profesores pueden acceder a esta página.</p>
+      </div>
+    <div className="space-y-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl p-6 text-white">
           <h1 className="text-2xl font-bold mb-2">Mis Estudiantes</h1>

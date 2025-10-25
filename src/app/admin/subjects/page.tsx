@@ -64,6 +64,7 @@ import {
   User,
   TrendingUp
 } from 'lucide-react'
+import { MultiUserCombobox } from '@/components/multi-user-combobox'
 
 interface Teacher {
   id: string
@@ -78,8 +79,8 @@ interface Subject {
   description?: string
   credits: number
   isActive: boolean
-  teacherId?: string
-  teacher?: Teacher
+  teacherIds?: string[]
+  teacher?: Teacher | null
   classCount?: number
   studentCount?: number
 }
@@ -116,7 +117,7 @@ export default function AdminSubjectsPage() {
     code: '',
     description: '',
     credits: '3',
-    teacherId: 'none',
+    teacherIds: [] as string[],
     isActive: true
   })
 
@@ -164,8 +165,8 @@ export default function AdminSubjectsPage() {
       const response = await fetch('/api/teachers')
       if (response.ok) {
         const data = await response.json()
-        const teachersArray = Array.isArray(data) ? data : []
-        setTeachers(teachersArray)
+        // data.teachers es el array correcto
+        setTeachers(Array.isArray(data.teachers) ? data.teachers : [])
       }
     } catch {
       console.error('Error loading teachers')
@@ -180,7 +181,7 @@ export default function AdminSubjectsPage() {
         body: JSON.stringify({
           ...subjectForm,
           credits: parseInt(subjectForm.credits),
-          teacherId: subjectForm.teacherId === 'none' ? null : subjectForm.teacherId
+          teacherIds: Array.isArray(subjectForm.teacherIds) ? subjectForm.teacherIds : []
         }),
       })
 
@@ -214,7 +215,7 @@ export default function AdminSubjectsPage() {
         body: JSON.stringify({
           ...subjectForm,
           credits: parseInt(subjectForm.credits),
-          teacherId: subjectForm.teacherId === 'none' ? null : subjectForm.teacherId
+          teacherIds: Array.isArray(subjectForm.teacherIds) ? subjectForm.teacherIds : []
         }),
       })
 
@@ -291,7 +292,7 @@ export default function AdminSubjectsPage() {
       code: '',
       description: '',
       credits: '3',
-      teacherId: 'none',
+      teacherIds: [] as string[],
       isActive: true
     })
   }
@@ -303,7 +304,7 @@ export default function AdminSubjectsPage() {
       code: subject.code,
       description: subject.description || '',
       credits: subject.credits.toString(),
-      teacherId: subject.teacherId || 'none',
+      teacherIds: subject.teacherIds || [],
       isActive: subject.isActive
     })
     setShowSubjectDialog(true)
@@ -644,26 +645,19 @@ export default function AdminSubjectsPage() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="teacherId">Profesor Asignado</Label>
-                  <Select 
-                    value={subjectForm.teacherId} 
-                    onValueChange={(value) => setSubjectForm({
-                      ...subjectForm,
-                      teacherId: value
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar profesor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin asignar</SelectItem>
-                      {(Array.isArray(teachers) ? teachers : []).map((teacher) => (
-                        <SelectItem key={teacher.id} value={teacher.id}>
-                          {teacher.firstName} {teacher.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="teacherIds">Profesores asignados</Label>
+                  <MultiUserCombobox
+                    users={(Array.isArray(teachers) ? teachers : []).map(t => ({
+                      id: t.id,
+                      name: `${t.firstName} ${t.lastName}`,
+                      email: '',
+                      role: 'TEACHER'
+                    }))}
+                    values={subjectForm.teacherIds}
+                    onValuesChange={ids => setSubjectForm(prev => ({ ...prev, teacherIds: ids }))}
+                    placeholder="Seleccionar profesores..."
+                    maxSelections={10}
+                  />
                 </div>
               </div>
             </div>
