@@ -23,7 +23,7 @@ export async function GET(
       )
     }
 
-    const teacher = await prisma.teacherProfile.findUnique({
+    const teacherData = await prisma.teacherProfile.findUnique({
       where: { id },
       include: {
         user: {
@@ -35,7 +35,18 @@ export async function GET(
           }
         },
         teacherSubjects: { include: { subject: true } },
-        classes: true,
+        classes: {
+          include: {
+            subject: true,
+            grade: true,
+            section: true,
+            _count: {
+              select: {
+                classStudents: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
             grades: true,
@@ -46,11 +57,18 @@ export async function GET(
       }
     })
 
-    if (!teacher) {
+    if (!teacherData) {
       return NextResponse.json(
         { error: 'Profesor no encontrado' },
         { status: 404 }
       )
+    }
+
+    // Transformar datos para incluir subjects
+    const teacher = {
+      ...teacherData,
+      subjects: teacherData.teacherSubjects.map(ts => ts.subject),
+      totalStudents: teacherData.classes.reduce((acc, c) => acc + c._count.classStudents, 0)
     }
 
     return NextResponse.json(teacher)
@@ -174,15 +192,33 @@ export async function PUT(
       }
 
       // Recargar el profesor con toda la información
-      return await tx.teacherProfile.findUnique({
+      const updatedTeacher = await tx.teacherProfile.findUnique({
         where: { id },
         include: {
           user: { select: { id: true, name: true, email: true, role: true } },
           teacherSubjects: { include: { subject: true } },
-          classes: true,
+          classes: {
+            include: {
+              subject: true,
+              grade: true,
+              section: true,
+              _count: {
+                select: {
+                  classStudents: true
+                }
+              }
+            }
+          },
           _count: { select: { grades: true, attendances: true, observations: true } }
         }
       })
+
+      // Transformar datos para incluir subjects
+      return {
+        ...updatedTeacher,
+        subjects: updatedTeacher?.teacherSubjects.map(ts => ts.subject) || [],
+        totalStudents: updatedTeacher?.classes.reduce((acc, c) => acc + c._count.classStudents, 0) || 0
+      }
     })
 
     return NextResponse.json(result)

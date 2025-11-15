@@ -193,11 +193,12 @@ export async function POST(request: NextRequest) {
       score,
       maxScore = 100,
       comments,
-      gradeDate
+      gradeDate,
+      academicPeriodId
     } = body
 
     // Validate required fields
-    if (!studentId || !subjectId || !gradeType || score === undefined) {
+    if (!studentId || !subjectId || !gradeType || score === undefined || !academicPeriodId) {
       return NextResponse.json({ error: "Campos requeridos faltantes" }, { status: 400 })
     }
 
@@ -217,6 +218,7 @@ export async function POST(request: NextRequest) {
         subjectId,
         teacherId: teacherProfile.id,
         classId,
+        academicPeriodId,
         gradeType,
         score,
         maxScore,

@@ -102,7 +102,24 @@ export async function GET() {
     }
 
     // Helper to format schedules
-    const dayNames: Record<string, string> = { '1': 'Lun', '2': 'Mar', '3': 'Mie', '4': 'Jue', '5': 'Vie', '6': 'Sab', '7': 'Dom', '0': 'Dom' }
+    const dayNames: Record<string, string> = { 
+      'MONDAY': 'Lun', 
+      'TUESDAY': 'Mar', 
+      'WEDNESDAY': 'Mie', 
+      'THURSDAY': 'Jue', 
+      'FRIDAY': 'Vie', 
+      'SATURDAY': 'Sab', 
+      'SUNDAY': 'Dom',
+      // También soportar números por si acaso
+      '1': 'Lun', 
+      '2': 'Mar', 
+      '3': 'Mie', 
+      '4': 'Jue', 
+      '5': 'Vie', 
+      '6': 'Sab', 
+      '7': 'Dom', 
+      '0': 'Dom' 
+    }
 
     // Transform the data for frontend
     const formattedClasses = classes.map((classItem: ClassWithDetails) => ({
@@ -124,12 +141,18 @@ export async function GET() {
       academicYear: classItem.academicYear,
       maxStudents: classItem.maxStudents,
   enrolledStudents: classItem._count?.classStudents || 0,
-  schedules: (classItem.schedules || []).map(s => {
+  schedulesDisplay: (classItem.schedules || []).map(s => {
     const dayLabel = dayNames[s.dayOfWeek] || s.dayOfWeek
     const start = new Date(s.startTime).toISOString().slice(11,16)
     const end = new Date(s.endTime).toISOString().slice(11,16)
     return `${dayLabel} ${start}–${end}${s.room ? ` (${s.room})` : ''}`
   }),
+  schedules: (classItem.schedules || []).map(s => ({
+    dayOfWeek: s.dayOfWeek,
+    startTime: new Date(s.startTime).toISOString().slice(11,16),
+    endTime: new Date(s.endTime).toISOString().slice(11,16),
+    room: s.room || ''
+  })),
       isActive: classItem.isActive,
       createdAt: classItem.createdAt
     }))
@@ -215,9 +238,9 @@ export async function POST(request: NextRequest) {
                 create: schedulesFromBody.map(s => ({
                   academicPeriodId,
                   dayOfWeek: s.dayOfWeek,
-                  // parse times as today with provided HH:MM
-                  startTime: new Date(new Date().toISOString().slice(0,10) + 'T' + s.startTime + ':00Z'),
-                  endTime: new Date(new Date().toISOString().slice(0,10) + 'T' + s.endTime + ':00Z'),
+                  // Use fixed date (1970-01-01) with UTC to avoid timezone conversion issues
+                  startTime: new Date(`1970-01-01T${s.startTime}:00.000Z`),
+                  endTime: new Date(`1970-01-01T${s.endTime}:00.000Z`),
                   room: s.room || null
                 }))
               }

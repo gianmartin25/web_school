@@ -43,6 +43,7 @@ export function useDashboardMetrics() {
 
   useEffect(() => {
     fetchMetrics()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
   return { metrics, loading, error, refetch: fetchMetrics }

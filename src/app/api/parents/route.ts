@@ -31,8 +31,8 @@ export async function GET() {
             firstName: true,
             lastName: true,
             studentId: true,
-            grade: true,
-            section: true
+            academicGrade: true,
+            academicSection: true
           }
         }
       }

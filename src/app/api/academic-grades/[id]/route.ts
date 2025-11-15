@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 // PATCH /api/academic-grades/[id] - Actualizar isActive de un grado
 export async function PATCH(
   request: NextRequest,
-  context: any
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,11 +15,10 @@ export async function PATCH(
     }
     // context.params may be either { id } or a Promise<{ id }> depending on Next
     // runtime typing generation. Normalize safely.
-    let params: any = context?.params;
-    if (params && typeof params.then === "function") {
-      params = await params;
-    }
-    const { id } = params || {};
+    const params = 'then' in context.params 
+      ? await context.params 
+      : context.params;
+    const { id } = params;
     const body = await request.json();
     // Si se intenta desactivar, validar dependencias
     if (body.isActive === false) {
@@ -33,7 +32,7 @@ export async function PATCH(
     }
     // Solo permitir actualizar campos editables
     const allowedFields = ["name", "level", "description", "isActive"];
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
     for (const key of allowedFields) {
       if (key in body) data[key] = body[key];
     }

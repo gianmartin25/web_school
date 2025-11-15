@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -134,7 +134,11 @@ async function getTeacherMetrics(userId: string) {
           _count: { select: { classStudents: true } }
         }
       },
-      subjects: true,
+      teacherSubjects: {
+        include: {
+          subject: true
+        }
+      },
       grades: {
         take: 10,
         orderBy: { createdAt: 'desc' },
@@ -174,7 +178,7 @@ async function getTeacherMetrics(userId: string) {
     overview: {
       totalClasses: teacherProfile.classes.length,
       totalStudents,
-      totalSubjects: teacherProfile.subjects.length,
+      totalSubjects: teacherProfile.teacherSubjects.length,
       averageGrade: Number(averageGrade.toFixed(1)),
       attendanceRate: Number(attendanceRate.toFixed(1))
     },
@@ -211,8 +215,8 @@ async function getParentMetrics(userId: string) {
             take: 30,
             orderBy: { date: 'desc' }
           },
-          grade: { select: { name: true, level: true } },
-          section: { select: { name: true } }
+          academicGrade: { select: { name: true, level: true } },
+          academicSection: { select: { name: true } }
         }
       }
     }
@@ -237,12 +241,11 @@ async function getParentMetrics(userId: string) {
     return {
       id: child.id,
       name: `${child.firstName} ${child.lastName}`,
-  grade: child.grade?.name || 'N/A',
-  section: child.section?.name || 'N/A',
+      grade: child.academicGrade?.name || 'N/A',
+      section: child.academicSection?.name || 'N/A',
       gpa: Number(gpa.toFixed(1)),
       attendanceRate: Number(attendanceRate.toFixed(1)),
       currentGPA: child.currentGPA || gpa,
-  attendanceRate: child.attendanceRate || attendanceRate,
       behaviorScore: child.behaviorScore,
       recentGrades: child.grades.slice(0, 5),
       upcomingEvents: [], // Esto se puede obtener de asignaciones próximas
@@ -287,7 +290,7 @@ async function getStudentMetrics(userId: string) {
           }
         }
       },
-      classStudents: {
+      classes: {
         include: {
           class: {
             include: {
@@ -301,8 +304,8 @@ async function getStudentMetrics(userId: string) {
           }
         }
       },
-      grade: { select: { name: true, level: true } },
-      section: { select: { name: true } }
+      academicGrade: { select: { name: true, level: true } },
+      academicSection: { select: { name: true } }
     }
   })
 
@@ -350,7 +353,6 @@ async function getStudentMetrics(userId: string) {
       attendanceRate: Number(attendanceRate.toFixed(1)),
       behaviorScore: studentProfile.behaviorScore,
       currentGPA: studentProfile.currentGPA || gpa,
-      attendanceRate: studentProfile.attendanceRate || attendanceRate,
       totalCredits: studentProfile.totalCredits,
       academicStatus: studentProfile.academicStatus,
     },

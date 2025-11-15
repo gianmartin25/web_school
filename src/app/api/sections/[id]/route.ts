@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 // PATCH /api/sections/[id] - Actualizar isActive de una sección
 export async function PATCH(
   request: NextRequest,
-  context: any
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,11 +15,10 @@ export async function PATCH(
     }
 
     // Normalize params (may be Promise in generated types)
-    let params: any = context?.params;
-    if (params && typeof params.then === "function") {
-      params = await params;
-    }
-    const { id } = params || {};
+    const params = 'then' in context.params 
+      ? await context.params 
+      : context.params;
+    const { id } = params;
     const body = await request.json();
 
     // Validar que el ID sea válido

@@ -98,12 +98,12 @@ export async function GET() {
         email: message.sender.email,
         role: message.sender.role
       },
-      receiver: {
+      receiver: message.receiver ? {
         id: message.receiver.id,
         name: message.receiver.name || message.receiver.email,
         email: message.receiver.email,
         role: message.receiver.role
-      }
+      } : null
     }))
 
     return NextResponse.json({

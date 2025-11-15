@@ -22,7 +22,7 @@ export async function GET() {
     }
 
     // Obtener profesores con información completa (incluyendo materias vía la tabla de unión)
-    const teachers = await prisma.teacherProfile.findMany({
+    const teachersData = await prisma.teacherProfile.findMany({
       include: {
         user: {
           select: {
@@ -37,7 +37,18 @@ export async function GET() {
             subject: true
           }
         },
-        classes: true,
+        classes: {
+          include: {
+            subject: true,
+            grade: true,
+            section: true,
+            _count: {
+              select: {
+                classStudents: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
             grades: true,
@@ -50,6 +61,13 @@ export async function GET() {
         createdAt: 'desc'
       }
     })
+
+    // Transformar los datos para que el frontend tenga subjects directamente
+    const teachers = teachersData.map(teacher => ({
+      ...teacher,
+      subjects: teacher.teacherSubjects.map(ts => ts.subject),
+      totalStudents: teacher.classes.reduce((acc, c) => acc + c._count.classStudents, 0)
+    }))
 
     // Calcular estadísticas
     const totalTeachers = teachers.length
@@ -244,7 +262,7 @@ export async function POST(request: NextRequest) {
         await tx.teacherSubject.createMany({ data: createData, skipDuplicates: true })
 
         // Recargar el profesor con las materias asignadas via teacherSubjects
-        return await tx.teacherProfile.findUnique({
+        const updatedTeacher = await tx.teacherProfile.findUnique({
           where: { id: teacher.id },
           include: {
             user: {
@@ -256,7 +274,18 @@ export async function POST(request: NextRequest) {
               }
             },
             teacherSubjects: { include: { subject: true } },
-            classes: true,
+            classes: {
+              include: {
+                subject: true,
+                grade: true,
+                section: true,
+                _count: {
+                  select: {
+                    classStudents: true
+                  }
+                }
+              }
+            },
             _count: {
               select: {
                 grades: true,
@@ -266,9 +295,21 @@ export async function POST(request: NextRequest) {
             }
           }
         })
+
+        // Transformar datos para incluir subjects
+        return {
+          ...updatedTeacher,
+          subjects: updatedTeacher?.teacherSubjects.map(ts => ts.subject) || [],
+          totalStudents: updatedTeacher?.classes.reduce((acc, c) => acc + c._count.classStudents, 0) || 0
+        }
       }
 
-      return teacher
+      // Si no hay materias, devolver el profesor básico con subjects vacío
+      return {
+        ...teacher,
+        subjects: [],
+        totalStudents: 0
+      }
     })
 
     return NextResponse.json({

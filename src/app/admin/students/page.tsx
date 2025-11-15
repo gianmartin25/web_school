@@ -72,6 +72,16 @@ interface Student {
   dateOfBirth: string
   grade: string
   section: string
+  gradeId?: string
+  sectionId?: string
+  academicGrade?: {
+    id: string
+    name: string
+  }
+  academicSection?: {
+    id: string
+    name: string
+  }
   enrollmentDate: string
   isActive: boolean
   parent: {
@@ -110,6 +120,8 @@ export default function AdminStudentsPage() {
   const [showStudentDialog, setShowStudentDialog] = useState(false)
   const [editingStudent, setEditingStudent] = useState<Student | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [grades, setGrades] = useState<Array<{ id: string; name: string }>>([])
+  const [sections, setSections] = useState<Array<{ id: string; name: string }>>([])
 
   // Form state
   const [studentForm, setStudentForm] = useState({
@@ -129,7 +141,36 @@ export default function AdminStudentsPage() {
 
   useEffect(() => {
     fetchStudents()
+    fetchGradesAndSections()
   }, [])
+
+  const fetchGradesAndSections = async () => {
+    try {
+      const [gradesRes, sectionsRes] = await Promise.all([
+        fetch('/api/academic-grades'),
+        fetch('/api/sections')
+      ])
+
+      if (gradesRes.ok) {
+        const gradesData = await gradesRes.json()
+        // Los datos ya vienen filtrados por isActive: true desde el API
+        setGrades(gradesData)
+      }
+
+      if (sectionsRes.ok) {
+        const sectionsData = await sectionsRes.json()
+        // Los datos ya vienen filtrados por isActive: true desde el API
+        setSections(sectionsData)
+      }
+    } catch (error) {
+      console.error('Error fetching grades and sections:', error)
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los grados y secciones',
+        variant: 'destructive',
+      })
+    }
+  }
 
   const fetchStudents = async () => {
     setLoading(true)
@@ -373,8 +414,8 @@ export default function AdminStudentsPage() {
       lastName: student.lastName,
       dateOfBirth: student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '',
       enrollmentDate: student.enrollmentDate ? new Date(student.enrollmentDate).toISOString().split('T')[0] : '',
-      grade: student.grade,
-      section: student.section,
+      grade: student.gradeId || student.academicGrade?.id || student.grade,
+      section: student.sectionId || student.academicSection?.id || student.section,
       parentFirstName: student.parent?.firstName || '',
       parentLastName: student.parent?.lastName || '',
       parentPhone: student.parent?.phone || '',
@@ -737,12 +778,11 @@ export default function AdminStudentsPage() {
                       <SelectValue placeholder="Seleccionar grado" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">Primer Grado</SelectItem>
-                      <SelectItem value="2">Segundo Grado</SelectItem>
-                      <SelectItem value="3">Tercer Grado</SelectItem>
-                      <SelectItem value="4">Cuarto Grado</SelectItem>
-                      <SelectItem value="5">Quinto Grado</SelectItem>
-                      <SelectItem value="6">Sexto Grado</SelectItem>
+                      {grades.map((grade) => (
+                        <SelectItem key={grade.id} value={grade.id}>
+                          {grade.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -759,9 +799,11 @@ export default function AdminStudentsPage() {
                       <SelectValue placeholder="Seleccionar sección" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="A">Sección A</SelectItem>
-                      <SelectItem value="B">Sección B</SelectItem>
-                      <SelectItem value="C">Sección C</SelectItem>
+                      {sections.map((section) => (
+                        <SelectItem key={section.id} value={section.id}>
+                          {section.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

@@ -32,7 +32,8 @@ export async function GET() {
     // Obtener todas las clases del profesor
     const classes = await prisma.class.findMany({
       where: {
-        teacherId: teacherProfile.id
+        teacherId: teacherProfile.id,
+        isActive: true
       },
       include: {
         subject: true,
@@ -55,27 +56,45 @@ export async function GET() {
             date: 'desc'
           },
           take: 30 // Últimas asistencias para calcular estadísticas
-        }
-        ,
+        },
         grade: true,
         section: true
-      }
+      },
+      orderBy: [
+        { subject: { name: 'asc' } },
+        { grade: { name: 'asc' } }
+      ]
     })
 
-    // Procesar datos para el frontend
+    // Procesar datos para el frontend - formato simplificado para el selector de calificaciones
+    const simpleClasses = classes.map(classItem => ({
+      id: classItem.id,
+      name: classItem.name,
+      subject: {
+        id: classItem.subject.id,
+        name: classItem.subject.name,
+        code: classItem.subject.code
+      },
+      grade: classItem.grade?.name || '',
+      section: classItem.section?.name || '',
+      academicYear: classItem.academicYear,
+      totalStudents: classItem.classStudents?.length || 0
+    }))
+
+    // Procesar datos para el dashboard - formato completo
     const processedClasses = classes.map(classItem => {
-  const enrolledStudents = classItem.classStudents?.length || 0
+      const enrolledStudents = classItem.classStudents?.length || 0
       const maxStudents = classItem.maxStudents
       
       // Calcular promedio de calificaciones de la clase
-  const grades = classItem.grades || []
+      const grades = classItem.grades || []
       const averageGrade = grades.length > 0 
         ? grades.reduce((sum, grade) => sum + grade.score, 0) / grades.length 
         : 0
 
       // Calcular tasa de asistencia de la clase
-  const totalAttendances = classItem.attendances?.length || 0
-  const presentAttendances = (classItem.attendances || []).filter(att => att.status === 'PRESENT').length
+      const totalAttendances = classItem.attendances?.length || 0
+      const presentAttendances = (classItem.attendances || []).filter(att => att.status === 'PRESENT').length
       const attendanceRate = totalAttendances > 0 
         ? (presentAttendances / totalAttendances) * 100 
         : 100
@@ -118,9 +137,10 @@ export async function GET() {
     }))
 
     return NextResponse.json({
-      classes: processedClasses,
+      classes: simpleClasses, // Formato simplificado para selectores
+      detailedClasses: processedClasses, // Formato completo para dashboard
       upcomingClasses,
-      total: processedClasses.length
+      total: simpleClasses.length
     })
 
   } catch (error) {

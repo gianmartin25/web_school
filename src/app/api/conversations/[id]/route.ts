@@ -49,7 +49,7 @@ export async function GET(
     let conversationMessages = [];
     if (originalMessage.threadId) {
       // Mensaje de grupo: obtener todos los mensajes del hilo
-  let messages = await prisma.message.findMany({
+      const messages = await prisma.message.findMany({
         where: {
           OR: [
             { id: originalMessage.threadId }, // Mensaje original del hilo
@@ -98,19 +98,4 @@ export async function GET(
       { status: 500 }
     )
   }
-}
-
-// Función auxiliar para obtener cadena de respuestas
-async function getReplyChain(threadId: string): Promise<string[]> {
-  const replies = await prisma.message.findMany({
-    where: { 
-      OR: [
-        { threadId: threadId },
-        { id: threadId }
-      ]
-    },
-    select: { id: true }
-  })
-  
-  return replies.map(reply => reply.id)
 }

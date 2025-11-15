@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const gradesData = await prisma.grade.findMany({
       where: {
         ...dateFilter,
-        ...(gradeFilter && gradeFilter !== "all" && { student: { grade: gradeFilter } }),
+        ...(gradeFilter && gradeFilter !== "all" && { student: { gradeId: gradeFilter } }),
         ...(subjectFilter && subjectFilter !== "all" && { subjectId: subjectFilter })
       },
       include: {

@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
     // Debug: log incoming payload and user for troubleshooting
     try {
       console.log('[unified-messages] POST payload:', JSON.stringify(body))
-    } catch (e) {
+    } catch {
       console.log('[unified-messages] POST payload (non-serializable)')
     }
     

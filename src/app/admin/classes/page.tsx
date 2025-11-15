@@ -30,7 +30,6 @@ import {
   Download,
   User,
   CheckCircle,
-  XCircle,
   School,
   TrendingUp
 } from 'lucide-react'
@@ -44,15 +43,20 @@ interface AdminClassData {
     code: string
     credits: number
   }
+  subjectId?: string
   teacher: {
     id: string
     firstName: string
     lastName: string
     email: string
   }
+  teacherId?: string
   grade: string
+  gradeId?: string
   section: string
+  sectionId?: string
   schedules?: Array<{ dayOfWeek: string; startTime: string; endTime: string; room?: string | null }>
+  schedulesDisplay?: string[]
   enrolledStudents?: number
   academicYear: string
   maxStudents: number
@@ -74,7 +78,7 @@ interface Teacher {
   firstName: string
   lastName: string
   email: string
-  subjects?: Subject[]
+  subjects?: Subject[] | unknown[]
   user?: { email?: string }
 }
 
@@ -109,7 +113,36 @@ export default function AdminClassesPage() {
   // Edit dialog form state
   const [editName, setEditName] = useState('')
   const [editGradeSectionLabel, setEditGradeSectionLabel] = useState('')
+  const [editSubjectId, setEditSubjectId] = useState('')
+  const [editTeacherId, setEditTeacherId] = useState('')
+  const [editSchedules, setEditSchedules] = useState<Array<{ dayOfWeek: string; startTime: string; endTime: string; room: string | null }>>([])
   const [editMaxStudents, setEditMaxStudents] = useState<number | undefined>(undefined)
+
+  // Función para recargar clases desde el API
+  const fetchClasses = async () => {
+    const classesRes = await fetch('/api/classes')
+    const classesData = await classesRes.json()
+
+    // classes endpoint may return { classes: [...], total }
+    if (Array.isArray(classesData)) {
+      const mapped = classesData.map((c: unknown) => {
+        const clazz = c as AdminClassData
+        clazz.currentStudents = (clazz.enrolledStudents ?? clazz.currentStudents ?? 0)
+        return clazz
+      })
+      setClasses(mapped)
+    } else if (classesData && typeof classesData === 'object') {
+      const container = classesData as { classes?: unknown[] }
+      if (Array.isArray(container.classes)) {
+        const mapped = container.classes.map((c: unknown) => {
+          const clazz = c as AdminClassData
+          clazz.currentStudents = (clazz.enrolledStudents ?? clazz.currentStudents ?? 0)
+          return clazz
+        })
+        setClasses(mapped)
+      }
+    }
+  }
 
   // Fetch data from API
   useEffect(() => {
@@ -155,20 +188,20 @@ export default function AdminClassesPage() {
         let normalizedTeachers: Teacher[] = []
         if (Array.isArray(teachersData)) {
           // API returned an array directly
-          normalizedTeachers = (teachersData as any[]).map(t => ({
-            id: t.id,
-            firstName: t.firstName,
-            lastName: t.lastName,
-            email: t.user?.email ?? t.email ?? '',
-            subjects: Array.isArray(t.teacherSubjects) ? t.teacherSubjects.map((ts: any) => ts.subject).filter(Boolean) : (t.subjects ?? [])
+          normalizedTeachers = (teachersData as Array<Record<string, unknown>>).map(t => ({
+            id: t.id as string,
+            firstName: t.firstName as string,
+            lastName: t.lastName as string,
+            email: (t.user as Record<string, unknown>)?.email as string ?? t.email as string ?? '',
+            subjects: Array.isArray(t.teacherSubjects) ? (t.teacherSubjects as Array<{subject: unknown}>).map((ts) => ts.subject).filter(Boolean) : (t.subjects as unknown[] ?? [])
           }))
-        } else if (teachersData && Array.isArray(teachersData.teachers)) {
-          normalizedTeachers = (teachersData.teachers as any[]).map(t => ({
-            id: t.id,
-            firstName: t.firstName,
-            lastName: t.lastName,
-            email: t.user?.email ?? t.email ?? '',
-            subjects: Array.isArray(t.teacherSubjects) ? t.teacherSubjects.map((ts: any) => ts.subject).filter(Boolean) : (t.subjects ?? [])
+        } else if (teachersData && Array.isArray((teachersData as Record<string, unknown>).teachers)) {
+          normalizedTeachers = ((teachersData as Record<string, unknown>).teachers as Array<Record<string, unknown>>).map(t => ({
+            id: t.id as string,
+            firstName: t.firstName as string,
+            lastName: t.lastName as string,
+            email: (t.user as Record<string, unknown>)?.email as string ?? t.email as string ?? '',
+            subjects: Array.isArray(t.teacherSubjects) ? (t.teacherSubjects as Array<{subject: unknown}>).map((ts) => ts.subject).filter(Boolean) : (t.subjects as unknown[] ?? [])
           }))
         }
 
@@ -251,13 +284,12 @@ export default function AdminClassesPage() {
         throw new Error(error.error || 'Error al crear la clase');
       }
 
-      const respJson = await response.json();
-  const createdClass = respJson?.class || respJson;
-  createdClass.currentStudents = createdClass.enrolledStudents ?? createdClass.currentStudents ?? 0
-  setClasses(prev => [...prev, createdClass]);
+      // Recargar los datos actualizados desde el servidor
+      await fetchClasses();
+      
       toast({
         title: 'Clase creada',
-        description: `La clase ${createdClass.name} ha sido creada exitosamente.`,
+        description: 'La clase ha sido creada exitosamente.',
       });
     } catch (error) {
       console.error('Error al crear clase:', error);
@@ -282,13 +314,12 @@ export default function AdminClassesPage() {
         throw new Error(error.error || 'Error al actualizar la clase');
       }
 
-      const resp = await response.json();
-  const updatedClass = resp?.class || resp;
-  updatedClass.currentStudents = updatedClass.enrolledStudents ?? updatedClass.currentStudents ?? 0
-  setClasses(prev => prev.map(c => (c.id === updatedClass.id ? updatedClass : c)));
+      // Recargar los datos actualizados desde el servidor
+      await fetchClasses();
+      
       toast({
         title: 'Clase actualizada',
-        description: `La clase ${updatedClass.name} ha sido actualizada exitosamente.`,
+        description: 'La clase ha sido actualizada exitosamente.',
       });
     } catch (error) {
       console.error('Error al actualizar clase:', error);
@@ -450,7 +481,7 @@ export default function AdminClassesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm text-muted-foreground">
-                          {classItem.schedules && classItem.schedules.length > 0 ? classItem.schedules.join(', ') : '—'}
+                          {classItem.schedulesDisplay && classItem.schedulesDisplay.length > 0 ? classItem.schedulesDisplay.join(', ') : '—'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -478,6 +509,32 @@ export default function AdminClassesPage() {
                               setEditName(classItem.name)
                               setEditMaxStudents(classItem.maxStudents)
                               setEditGradeSectionLabel(`${classItem.grade} - Sección ${classItem.section}`)
+                              
+                              // Usar subject.id y teacher.id en vez de subjectId/teacherId
+                              setEditSubjectId(classItem.subject?.id || classItem.subjectId || '')
+                              setEditTeacherId(classItem.teacher?.id || classItem.teacherId || '')
+                              
+                              // Convert schedules to edit format
+                              const schedules = (classItem.schedules || []).map((s: { dayOfWeek: string | number; startTime: string; endTime: string; room?: string | null }) => {
+                                // Mapear día de semana de string a número
+                                const dayMap: Record<string, string> = {
+                                  'MONDAY': '1',
+                                  'TUESDAY': '2',
+                                  'WEDNESDAY': '3',
+                                  'THURSDAY': '4',
+                                  'FRIDAY': '5',
+                                  'SATURDAY': '6',
+                                  'SUNDAY': '7'
+                                }
+                                
+                                return {
+                                  dayOfWeek: typeof s.dayOfWeek === 'string' ? (dayMap[s.dayOfWeek] || '1') : String(s.dayOfWeek),
+                                  startTime: s.startTime || '',
+                                  endTime: s.endTime || '',
+                                  room: s.room || ''
+                                }
+                              })
+                              setEditSchedules(schedules)
                               setIsEditDialogOpen(true)
                             }}
                           >
@@ -546,7 +603,7 @@ export default function AdminClassesPage() {
               <Label htmlFor="teacher">Profesor</Label>
               <UserCombobox
                 users={teachers
-                  .filter(t => !createSubjectId || t.subjects?.some(s => s.id === createSubjectId))
+                  .filter(t => !createSubjectId || t.subjects?.some((s: unknown) => (s as Subject).id === createSubjectId))
                   .map((t) => ({
                     id: t.id,
                     name: `${t.firstName ?? ''} ${t.lastName ?? ''}`.replace(/ +/g, ' ').trim(),
@@ -660,7 +717,7 @@ export default function AdminClassesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Clase</DialogTitle>
             <DialogDescription>
@@ -674,34 +731,159 @@ export default function AdminClassesPage() {
                 id="editClassName" 
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+                placeholder="Ej: Matemáticas 3° A"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="editGrade">Grado</Label>
-                <Input
-                  id="editGradeSection"
-                  list="gradeSections"
-                  value={editGradeSectionLabel}
-                  onChange={(e) => setEditGradeSectionLabel(e.target.value)}
-                />
-                <datalist id="gradeSections">
-                  {gradeSections.map(gs => (
-                    <option key={gs.id} value={`${gs.grade.name} - Sección ${gs.section.name}`} />
-                  ))}
-                </datalist>
+            <div>
+              <Label htmlFor="editGradeSection">Grado - Sección</Label>
+              <Input
+                id="editGradeSection"
+                list="gradeSectionsEdit"
+                value={editGradeSectionLabel}
+                onChange={(e) => setEditGradeSectionLabel(e.target.value)}
+                placeholder="Seleccione una combinación de Grado - Sección"
+              />
+              <datalist id="gradeSectionsEdit">
+                {gradeSections.map(gs => (
+                  <option key={gs.id} value={`${gs.grade.name} - Sección ${gs.section.name}`} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <Label htmlFor="editSubject">Materia</Label>
+              <SubjectCombobox
+                subjects={subjects}
+                value={editSubjectId}
+                onValueChange={(val) => {
+                  setEditSubjectId(val)
+                  // cuando cambia la materia, limpiar la selección del profesor
+                  setEditTeacherId('')
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="editTeacher">Profesor</Label>
+              <UserCombobox
+                users={teachers
+                  .filter(t => !editSubjectId || t.subjects?.some((s: unknown) => (s as Subject).id === editSubjectId))
+                  .map((t) => ({
+                    id: t.id,
+                    name: `${t.firstName ?? ''} ${t.lastName ?? ''}`.replace(/ +/g, ' ').trim(),
+                    email: t.user?.email ?? t.email ?? '',
+                    role: 'TEACHER'
+                  }))}
+                value={editTeacherId}
+                onValueChange={(val) => setEditTeacherId(val)}
+                placeholder="Buscar profesor por nombre"
+                emptyMessage="No se encontraron profesores para esta materia"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Horarios</Label>
+              {editSchedules.map((s, idx) => (
+                <div key={idx} className="grid grid-cols-5 gap-2 items-end">
+                  <div>
+                    <Label className="text-sm">Día</Label>
+                    <select 
+                      className="w-full rounded-md border p-2 text-sm" 
+                      value={s.dayOfWeek} 
+                      onChange={(e) => {
+                        const next = [...editSchedules]
+                        next[idx].dayOfWeek = e.target.value
+                        setEditSchedules(next)
+                      }}
+                    >
+                      <option value="1">Lun</option>
+                      <option value="2">Mar</option>
+                      <option value="3">Mie</option>
+                      <option value="4">Jue</option>
+                      <option value="5">Vie</option>
+                      <option value="6">Sab</option>
+                      <option value="7">Dom</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-sm">Inicio</Label>
+                    <Input 
+                      type="time" 
+                      value={s.startTime} 
+                      onChange={(e) => { 
+                        const next = [...editSchedules]
+                        next[idx].startTime = e.target.value
+                        setEditSchedules(next)
+                      }} 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Fin</Label>
+                    <Input 
+                      type="time" 
+                      value={s.endTime} 
+                      onChange={(e) => { 
+                        const next = [...editSchedules]
+                        next[idx].endTime = e.target.value
+                        setEditSchedules(next)
+                      }} 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Aula</Label>
+                    <Input 
+                      value={s.room || ''} 
+                      onChange={(e) => { 
+                        const next = [...editSchedules]
+                        next[idx].room = e.target.value
+                        setEditSchedules(next)
+                      }} 
+                      placeholder="Opcional" 
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const next = editSchedules.filter((_, i) => i !== idx)
+                      setEditSchedules(next)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setEditSchedules(prev => [...prev, { 
+                    dayOfWeek: '1', 
+                    startTime: '08:00', 
+                    endTime: '09:00', 
+                    room: '' 
+                  }])}
+                >
+                  + Agregar horario
+                </Button>
+                {editSchedules.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setEditSchedules([])}
+                  >
+                    Limpiar todos
+                  </Button>
+                )}
               </div>
-              <div>
-                <Label htmlFor="editMaxStudents">Capacidad Máxima</Label>
-                <Input
-                  id="editMaxStudents"
-                  type="number"
-                  value={editMaxStudents}
-                  onChange={(e) => setEditMaxStudents(Number(e.target.value))}
-                  min={1}
-                  max={50}
-                />
-              </div>
+            </div>
+            <div>
+              <Label htmlFor="editMaxStudents">Capacidad Máxima</Label>
+              <Input
+                id="editMaxStudents"
+                type="number"
+                value={editMaxStudents}
+                onChange={(e) => setEditMaxStudents(Number(e.target.value))}
+                min={1}
+                max={50}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -710,17 +892,38 @@ export default function AdminClassesPage() {
             </Button>
             <Button onClick={async () => {
               if (!selectedClass) return
+              
               const gs = gradeSections.find(g => `${g.grade.name} - Sección ${g.section.name}` === editGradeSectionLabel)
               if (!gs) {
                 toast({ title: 'Error', description: 'Seleccione una combinación válida de grado y sección', variant: 'destructive' })
                 return
               }
+
+              const subj = subjects.find(s => s.id === editSubjectId)
+              const teacherObj = teachers.find(t => t.id === editTeacherId)
+              
+              if (!editName || !subj || !teacherObj) {
+                toast({ title: 'Error', description: 'Complete los campos requeridos (nombre, materia, profesor)', variant: 'destructive' })
+                return
+              }
+
+              // Preparar horarios
+              const schedulesPayload = editSchedules.map(s => ({
+                dayOfWeek: s.dayOfWeek,
+                startTime: s.startTime,
+                endTime: s.endTime,
+                room: s.room || null
+              }))
+
               await handleEditClass({
                 id: selectedClass.id,
                 name: editName,
+                subjectId: subj.id,
+                teacherId: teacherObj.id,
                 gradeId: gs.grade.id,
                 sectionId: gs.section.id,
-                maxStudents: editMaxStudents
+                maxStudents: editMaxStudents,
+                schedules: schedulesPayload
               })
               setIsEditDialogOpen(false)
             }}>

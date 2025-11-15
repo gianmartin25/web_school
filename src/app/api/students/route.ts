@@ -228,6 +228,10 @@ export async function GET() {
         dateOfBirth: student.dateOfBirth,
         grade: student.grade,
         section: student.section,
+        gradeId: student.gradeId,
+        sectionId: student.sectionId,
+        academicGrade: student.academicGrade,
+        academicSection: student.academicSection,
         enrollmentDate: student.enrollmentDate,
         isActive: student.isActive,
         class: student.classes[0]?.class ? {
@@ -396,9 +400,41 @@ export async function POST(request: NextRequest) {
               }
             }
           }
+        },
+        academicGrade: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        academicSection: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       }
     })
+
+    // Matricular automáticamente al estudiante en todas las clases de su grado y sección
+    const matchingClasses = await prisma.class.findMany({
+      where: {
+        gradeId: grade,
+        sectionId: section,
+        isActive: true
+      }
+    })
+
+    if (matchingClasses.length > 0) {
+      await prisma.classStudent.createMany({
+        data: matchingClasses.map(classItem => ({
+          classId: classItem.id,
+          studentId: student.id
+        })),
+        skipDuplicates: true // Evitar errores si ya existe
+      })
+      console.log(`Student auto-enrolled in ${matchingClasses.length} classes`)
+    }
 
     console.log('Student created successfully:', student.id)
     return NextResponse.json(student, { status: 201 })

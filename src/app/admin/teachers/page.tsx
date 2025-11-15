@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { MultiSubjectCombobox } from '@/components/multi-subject-combobox'
 import { toast } from '@/hooks/use-toast'
 import { 
   Users, 
@@ -291,7 +292,8 @@ export default function AdminTeachersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...teacherForm,
-          salary: teacherForm.salary ? parseFloat(teacherForm.salary) : null
+          salary: teacherForm.salary ? parseFloat(teacherForm.salary) : null,
+          subjectIds: selectedSubjects // Incluir materias seleccionadas
         }),
       })
 
@@ -867,63 +869,20 @@ export default function AdminTeachersPage() {
                   <h3 className="text-lg font-semibold">Materias a Asignar</h3>
                 </div>
                 
-                <div className="bg-gray-50 rounded-lg p-4 border">
+                <div className="space-y-2">
                   {subjects.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
-                      {subjects.map((subject) => (
-                        <div 
-                          key={subject.id} 
-                          className="flex items-center space-x-3 p-2 hover:bg-white rounded-md transition-colors"
-                        >
-                          <Checkbox
-                            id={`subject-${subject.id}`}
-                            checked={selectedSubjects.includes(subject.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedSubjects([...selectedSubjects, subject.id])
-                              } else {
-                                setSelectedSubjects(selectedSubjects.filter(id => id !== subject.id))
-                              }
-                            }}
-                            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                          />
-                          <Label 
-                            htmlFor={`subject-${subject.id}`}
-                            className="text-sm font-normal cursor-pointer flex-1 leading-relaxed"
-                          >
-                            <span className="font-medium">{subject.name}</span>
-                            <br />
-                            <span className="text-gray-600 text-xs">({subject.code})</span>
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+                    <MultiSubjectCombobox
+                      subjects={subjects}
+                      selectedIds={selectedSubjects}
+                      onSelectionChange={setSelectedSubjects}
+                      placeholder="Buscar y seleccionar materias..."
+                      emptyMessage="No se encontraron materias."
+                    />
                   ) : (
                     <div className="text-center py-8">
                       <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                       <p className="text-gray-500 font-medium">No hay materias disponibles</p>
                       <p className="text-gray-400 text-sm">Contacta al administrador del sistema</p>
-                    </div>
-                  )}
-                  
-                  {selectedSubjects.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                      <p className="text-sm text-gray-600 mb-2">
-                        <span className="font-medium">{selectedSubjects.length}</span> materia(s) seleccionada(s)
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedSubjects.map(subjectId => {
-                          const subject = subjects.find(s => s.id === subjectId)
-                          return subject ? (
-                            <span 
-                              key={subjectId}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {subject.code}
-                            </span>
-                          ) : null
-                        })}
-                      </div>
                     </div>
                   )}
                 </div>

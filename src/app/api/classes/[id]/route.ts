@@ -155,6 +155,213 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+// PATCH /api/classes/[id] - Update a class (includes schedules)
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'No tienes permisos para editar clases' },
+        { status: 403 }
+      )
+    }
+
+    const { id } = await params
+    const body = await request.json()
+    const { 
+      name, 
+      subjectId, 
+      teacherId, 
+      gradeId,
+      sectionId, 
+      maxStudents, 
+      academicYear,
+      isActive,
+      schedules = []
+    } = body
+
+    // Check if class exists
+    const existingClass = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        schedules: true
+      }
+    })
+
+    if (!existingClass) {
+      return NextResponse.json({ error: 'Clase no encontrada' }, { status: 404 })
+    }
+
+    // Validate teacher if provided
+    if (teacherId) {
+      const teacher = await prisma.teacherProfile.findUnique({
+        where: { id: teacherId }
+      })
+      if (!teacher) {
+        return NextResponse.json({ error: 'Profesor no encontrado' }, { status: 404 })
+      }
+    }
+
+    // Validate subject if provided
+    if (subjectId) {
+      const subject = await prisma.subject.findUnique({
+        where: { id: subjectId }
+      })
+      if (!subject) {
+        return NextResponse.json({ error: 'Materia no encontrada' }, { status: 404 })
+      }
+    }
+
+    // Use transaction to update class and schedules
+    const result = await prisma.$transaction(async (tx) => {
+      // Update the class
+      const updatedClass = await tx.class.update({
+        where: { id },
+        data: {
+          ...(name && { name }),
+          ...(subjectId && { subjectId }),
+          ...(teacherId && { teacherId }),
+          ...(gradeId && { gradeId }),
+          ...(sectionId && { sectionId }),
+          ...(maxStudents !== undefined && { maxStudents }),
+          ...(academicYear && { academicYear }),
+          ...(isActive !== undefined && { isActive })
+        },
+        include: {
+          subject: true,
+          teacher: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            }
+          },
+          grade: true,
+          section: true,
+          schedules: true,
+          _count: {
+            select: {
+              classStudents: true
+            }
+          }
+        }
+      })
+
+      // Update schedules if provided
+      if (schedules.length >= 0) {
+        // Delete existing schedules
+        await tx.schedule.deleteMany({
+          where: { classId: id }
+        })
+
+        // Create new schedules if any
+        if (schedules.length > 0) {
+          // Get academic period (assuming there's an active one)
+          const activePeriod = await tx.academicPeriod.findFirst({
+            where: { isActive: true },
+            orderBy: { startDate: 'desc' }
+          })
+
+          if (!activePeriod) {
+            throw new Error('No se encontró un período académico activo')
+          }
+
+          for (const schedule of schedules) {
+            // Convert day of week string to proper format
+            const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+            const dayIndex = parseInt(schedule.dayOfWeek) % 7
+            const dayName = dayNames[dayIndex]
+
+            // Create time strings using UTC to avoid timezone conversion issues
+            // Use a fixed date (1970-01-01) since we only care about the time
+            const startDateTime = new Date(`1970-01-01T${schedule.startTime}:00.000Z`)
+            const endDateTime = new Date(`1970-01-01T${schedule.endTime}:00.000Z`)
+
+            await tx.schedule.create({
+              data: {
+                classId: id,
+                academicPeriodId: activePeriod.id,
+                dayOfWeek: dayName,
+                startTime: startDateTime,
+                endTime: endDateTime,
+                room: schedule.room || null,
+                notes: null
+              }
+            })
+          }
+        }
+      }
+
+      return updatedClass
+    })
+
+    // Helper to format schedules
+    const dayNames: Record<string, string> = { 
+      'MONDAY': 'Lun', 
+      'TUESDAY': 'Mar', 
+      'WEDNESDAY': 'Mie', 
+      'THURSDAY': 'Jue', 
+      'FRIDAY': 'Vie', 
+      'SATURDAY': 'Sab', 
+      'SUNDAY': 'Dom' 
+    }
+
+    return NextResponse.json({
+      class: {
+        id: result.id,
+        name: result.name,
+        grade: result.grade?.name || result.grade || 'No asignado',
+        section: result.section?.name || result.section || 'No asignado',
+        capacity: result.maxStudents,
+        currentStudents: result._count.classStudents,
+        enrolledStudents: result._count.classStudents,
+        maxStudents: result.maxStudents,
+        academicYear: result.academicYear,
+        isActive: result.isActive,
+        subject: result.subject ? {
+          id: result.subject.id,
+          name: result.subject.name,
+          code: result.subject.code
+        } : null,
+        subjectId: result.subjectId,
+        teacher: result.teacher ? {
+          id: result.teacher.id,
+          name: result.teacher.user.name,
+          email: result.teacher.user.email
+        } : null,
+        teacherId: result.teacherId,
+        gradeId: result.gradeId,
+        sectionId: result.sectionId,
+        schedulesDisplay: (result.schedules || []).map(s => {
+          const dayLabel = dayNames[s.dayOfWeek] || s.dayOfWeek
+          const start = new Date(s.startTime).toISOString().slice(11,16)
+          const end = new Date(s.endTime).toISOString().slice(11,16)
+          return `${dayLabel} ${start}–${end}${s.room ? ` (${s.room})` : ''}`
+        }),
+        schedules: (result.schedules || []).map(s => ({
+          dayOfWeek: s.dayOfWeek,
+          startTime: new Date(s.startTime).toISOString().slice(11,16),
+          endTime: new Date(s.endTime).toISOString().slice(11,16),
+          room: s.room || ''
+        })),
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt
+      }
+    })
+
+  } catch (error) {
+    console.error('Error updating class:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}
+
 // PUT /api/classes/[id] - Update a class
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {

@@ -1,5 +1,3 @@
-import NextAuth from "next-auth"
-
 export type UserRole = "ADMIN" | "TEACHER" | "PARENT" | "STUDENT"
 
 declare module "next-auth" {

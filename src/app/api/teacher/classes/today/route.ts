@@ -32,12 +32,17 @@ export async function GET(request: NextRequest) {
     const dateParam = searchParams.get('date')
     
     // Usar la fecha proporcionada o la fecha actual
-    const targetDate = dateParam ? new Date(dateParam) : new Date()
+    // Agregar 'T00:00:00' para evitar problemas de zona horaria
+    const targetDate = dateParam ? new Date(dateParam + 'T00:00:00') : new Date()
     const dayOfWeek = targetDate.getDay() // 0 = Domingo, 1 = Lunes, etc.
     
     // Mapear días de la semana
     const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
     const currentDay = dayNames[dayOfWeek]
+
+    console.log('Date requested:', dateParam)
+    console.log('Target date:', targetDate)
+    console.log('Day of week:', dayOfWeek, currentDay)
 
     // Obtener clases del profesor 
     const teacherClasses = await prisma.class.findMany({
@@ -49,6 +54,14 @@ export async function GET(request: NextRequest) {
         subject: true,
         grade: true,
         section: true,
+        schedules: {
+          where: {
+            dayOfWeek: currentDay
+          },
+          orderBy: {
+            startTime: 'asc'
+          }
+        },
         classStudents: {
           include: {
             student: true
@@ -89,35 +102,49 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Formatear las clases con información adicional
-    const formattedClasses = teacherClasses.map(classItem => {
-      // Verificar si ya se registró asistencia para esta clase hoy
-      const hasAttendanceToday = existingAttendances.some(
-        attendance => attendance.classId === classItem.id
-      )
+    console.log('Total classes found:', teacherClasses.length)
+    console.log('Classes with schedules for', currentDay, ':', teacherClasses.filter(c => c.schedules.length > 0).length)
 
-      return {
-        id: classItem.id,
-        name: classItem.name,
-        subject: {
-          id: classItem.subject.id,
-          name: classItem.subject.name,
-          code: classItem.subject.code
-        },
-        grade: classItem.grade?.name || '',
-        section: classItem.section?.name || '',
-        academicYear: classItem.academicYear,
-        students: classItem.classStudents.map(classStudent => ({
-          id: classStudent.student.id,
-          studentId: classStudent.student.studentId,
-          firstName: classStudent.student.firstName,
-          lastName: classStudent.student.lastName
-        })),
-        totalStudents: classItem._count.classStudents,
-        hasAttendanceToday,
-        attendanceCount: existingAttendances.filter(a => a.classId === classItem.id).length
-      }
-    })
+    // Formatear las clases con información adicional
+    const formattedClasses = teacherClasses
+      .filter(classItem => classItem.schedules.length > 0) // Solo clases que tienen horario hoy
+      .map(classItem => {
+        // Verificar si ya se registró asistencia para esta clase hoy
+        const hasAttendanceToday = existingAttendances.some(
+          attendance => attendance.classId === classItem.id
+        )
+
+        const schedule = classItem.schedules[0] // Ya está filtrado por dayOfWeek y ordenado
+
+        return {
+          id: classItem.id,
+          name: classItem.name,
+          subject: {
+            id: classItem.subject.id,
+            name: classItem.subject.name,
+            code: classItem.subject.code
+          },
+          grade: classItem.grade?.name || '',
+          section: classItem.section?.name || '',
+          academicYear: classItem.academicYear,
+          schedule: {
+            startTime: schedule.startTime.toISOString(),
+            endTime: schedule.endTime.toISOString(),
+            room: schedule.room || null,
+            dayOfWeek: schedule.dayOfWeek
+          },
+          students: classItem.classStudents.map(classStudent => ({
+            id: classStudent.student.id,
+            studentId: classStudent.student.studentId,
+            firstName: classStudent.student.firstName,
+            lastName: classStudent.student.lastName
+          })),
+          totalStudents: classItem._count.classStudents,
+          hasAttendanceToday,
+          attendanceCount: existingAttendances.filter(a => a.classId === classItem.id).length
+        }
+      })
+      .sort((a, b) => new Date(a.schedule.startTime).getTime() - new Date(b.schedule.startTime).getTime())
 
     return NextResponse.json({
       date: targetDate.toISOString().split('T')[0],

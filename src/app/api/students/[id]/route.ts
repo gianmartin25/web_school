@@ -173,24 +173,97 @@ export async function PUT(
       }
     }
 
+    // Validar grado y sección si se proporcionan
+    if (grade) {
+      const gradeObj = await prisma.academicGrade.findUnique({ where: { id: grade } })
+      if (!gradeObj || !gradeObj.isActive) {
+        return NextResponse.json(
+          { error: 'El grado seleccionado está inactivo o no existe.' },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (section) {
+      const sectionObj = await prisma.section.findUnique({ where: { id: section } })
+      if (!sectionObj || !sectionObj.isActive) {
+        return NextResponse.json(
+          { error: 'La sección seleccionada está inactiva o no existe.' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Actualizar estudiante
     const updatedStudent = await prisma.studentProfile.update({
       where: { id },
       data: {
-        studentId,
-        firstName,
-        lastName,
-        dateOfBirth: new Date(dateOfBirth),
-        enrollmentDate: new Date(enrollmentDate),
-        gradeId: grade, // Asumiendo que grade contiene el ID del grado
-        sectionId: section, // Asumiendo que section contiene el ID de la sección
-        parentId,
-        isActive,
+        ...(studentId && { studentId }),
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
+        ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
+        ...(enrollmentDate && { enrollmentDate: new Date(enrollmentDate) }),
+        ...(grade && { gradeId: grade }),
+        ...(section && { sectionId: section }),
+        ...(parentId && { parentId }),
+        ...(isActive !== undefined && { isActive }),
       },
       include: {
-        parent: true,
+        parent: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        academicGrade: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        academicSection: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       }
     })
+
+    // Si se cambió el grado o la sección, rematricular automáticamente
+    if (grade || section) {
+      const finalGrade = grade || existingStudent.gradeId
+      const finalSection = section || existingStudent.sectionId
+
+      // Eliminar matriculaciones anteriores
+      await prisma.classStudent.deleteMany({
+        where: { studentId: id }
+      })
+
+      // Matricular en las clases del nuevo grado/sección
+      const matchingClasses = await prisma.class.findMany({
+        where: {
+          gradeId: finalGrade,
+          sectionId: finalSection,
+          isActive: true
+        }
+      })
+
+      if (matchingClasses.length > 0) {
+        await prisma.classStudent.createMany({
+          data: matchingClasses.map(classItem => ({
+            classId: classItem.id,
+            studentId: id
+          })),
+          skipDuplicates: true
+        })
+        console.log(`Student re-enrolled in ${matchingClasses.length} classes after update`)
+      }
+    }
 
     return NextResponse.json(updatedStudent)
   } catch (error) {

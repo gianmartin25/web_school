@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       readCount: message.isRead ? 1 : 0,
       totalRecipients: 1,
       priority: 'medium', // Por defecto
-      recipientsList: [message.receiver.id]
+      recipientsList: message.receiver ? [message.receiver.id] : []
     }))
 
     // Formatear destinatarios
@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
         readCount: 0,
         totalRecipients: 1,
         priority,
-        recipientsList: [msg.receiver.id]
+        recipientsList: msg.receiver ? [msg.receiver.id] : []
       }))
     }, { status: 201 })
 
