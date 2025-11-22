@@ -97,8 +97,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         { href: "/admin/classes", label: "Clases", icon: Settings },
         { href: "/admin/grades", label: "Grados y Secciones", icon: GraduationCap },
         // Módulos Administrativos Avanzados
-        { href: "/admin/academic-config", label: "Configuración Académica", icon: Cog },
-        { href: "/admin/reports", label: "Reportes y Dashboard", icon: BarChart3 },
+        // { href: "/admin/academic-config", label: "Configuración Académica", icon: Cog },
+        // { href: "/admin/reports", label: "Reportes y Dashboard", icon: BarChart3 },
       ]
     }
 
@@ -106,11 +106,11 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       return [
         ...commonItems,
         { href: "/student/grades", label: "Mis Calificaciones", icon: BookOpen },
-        { href: "/student/attendance", label: "Mi Asistencia", icon: Calendar },
-        { href: "/student/schedule", label: "Mi Horario", icon: UserCheck },
-        { href: "/student/homework", label: "Mis Tareas", icon: ClipboardList },
+        // { href: "/student/attendance", label: "Mi Asistencia", icon: Calendar },
+        // { href: "/student/schedule", label: "Mi Horario", icon: UserCheck },
+        // { href: "/student/homework", label: "Mis Tareas", icon: ClipboardList },
         { href: "/communications", label: "Mensajes", icon: MessageSquare },
-        { href: "/student/reports", label: "Reportes", icon: BarChart3 },
+        // { href: "/student/reports", label: "Reportes", icon: BarChart3 },
       ]
     }
 
