@@ -54,8 +54,7 @@ import {
   GraduationCap, 
   Calendar,
   TrendingUp,
-  Download,
-  Filter,
+
   Eye,
   Edit,
   Trash2,
@@ -493,18 +492,6 @@ export default function AdminStudentsPage() {
       onClick: openCreateDialog,
       icon: UserPlus,
       variant: 'default' as const,
-    },
-    {
-      label: 'Exportar',
-      onClick: () => {},
-      icon: Download,
-      variant: 'outline' as const,
-    },
-    {
-      label: 'Filtros',
-      onClick: () => {},
-      icon: Filter,
-      variant: 'outline' as const,
     },
   ]
 

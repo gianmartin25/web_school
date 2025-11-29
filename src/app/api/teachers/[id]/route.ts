@@ -252,16 +252,59 @@ export async function DELETE(
       )
     }
 
-    // Verificar que el profesor existe
+    // Verificar que el profesor existe y obtener dependencias
     const existingTeacher = await prisma.teacherProfile.findUnique({
       where: { id },
-      include: { user: true }
+      include: { 
+        user: true,
+        classes: true,
+        attendances: true,
+        grades: true,
+        _count: {
+          select: {
+            classes: true,
+            attendances: true,
+            grades: true
+          }
+        }
+      }
     })
 
     if (!existingTeacher) {
       return NextResponse.json(
         { error: 'Profesor no encontrado' },
         { status: 404 }
+      )
+    }
+
+    // Verificar dependencias
+    if (existingTeacher._count.classes > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este profesor porque tiene clases asignadas',
+          details: `${existingTeacher._count.classes} clase(s) asignada(s)`
+        }, 
+        { status: 400 }
+      )
+    }
+
+    if (existingTeacher._count.attendances > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este profesor porque tiene registros de asistencia',
+          details: `${existingTeacher._count.attendances} registro(s) de asistencia`
+        }, 
+        { status: 400 }
+      )
+    }
+
+    if (existingTeacher._count.grades > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este profesor porque tiene calificaciones registradas',
+          details: `${existingTeacher._count.grades} calificación(es) registrada(s)`
+        }, 
+        { status: 400 }
       )
     }
 

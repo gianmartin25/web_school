@@ -49,3 +49,69 @@ export async function PATCH(
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
+
+// DELETE /api/academic-grades/[id] - Eliminar un grado académico
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const params = 'then' in context.params 
+      ? await context.params 
+      : context.params;
+    const { id } = params;
+
+    // Verificar dependencias antes de eliminar
+    const dependencies = await prisma.academicGrade.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            studentProfiles: true,
+            classes: true
+          }
+        }
+      }
+    });
+
+    if (!dependencies) {
+      return NextResponse.json({ error: "Grado no encontrado" }, { status: 404 });
+    }
+
+    // Verificar si hay dependencias
+    if (dependencies._count.studentProfiles > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este grado porque hay estudiantes asignados',
+          details: `${dependencies._count.studentProfiles} estudiante(s) asignado(s)`
+        }, 
+        { status: 400 }
+      );
+    }
+
+    if (dependencies._count.classes > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este grado porque hay clases asignadas',
+          details: `${dependencies._count.classes} clase(s) asignada(s)`
+        }, 
+        { status: 400 }
+      );
+    }
+
+    // Eliminar el grado si no hay dependencias
+    await prisma.academicGrade.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ message: 'Grado eliminado exitosamente' });
+  } catch (error) {
+    console.error("Error eliminando grado:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+}

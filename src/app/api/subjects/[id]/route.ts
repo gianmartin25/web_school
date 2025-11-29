@@ -80,6 +80,46 @@ export async function DELETE(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
+    // Verificar dependencias antes de eliminar
+    const dependencies = await prisma.subject.findUnique({
+      where: { id },
+      include: {
+        teacherSubjects: true,
+        classes: true,
+        _count: {
+          select: {
+            teacherSubjects: true,
+            classes: true
+          }
+        }
+      }
+    })
+
+    if (!dependencies) {
+      return NextResponse.json({ error: 'Materia no encontrada' }, { status: 404 })
+    }
+
+    // Verificar si hay dependencias
+    if (dependencies._count.teacherSubjects > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar esta materia porque hay profesores asignados a ella',
+          details: `${dependencies._count.teacherSubjects} profesor(es) asignado(s)`
+        }, 
+        { status: 400 }
+      )
+    }
+
+    if (dependencies._count.classes > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar esta materia porque hay clases asociadas a ella',
+          details: `${dependencies._count.classes} clase(s) asociada(s)`
+        }, 
+        { status: 400 }
+      )
+    }
+
     // Borrar subject (las filas en teacherSubjects eliminarán por cascade)
     await prisma.subject.delete({ where: { id } })
     return NextResponse.json({ message: 'Materia eliminada' })

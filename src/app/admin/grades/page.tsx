@@ -21,7 +21,6 @@ import {
   BookOpen,
   Grid3x3,
   Search,
-  Download,
   Upload,
   AlertCircle
 } from 'lucide-react'
@@ -216,22 +215,34 @@ export default function AdminGradesManagementPage() {
       })
   }
 
-  const handleDeleteGrade = (gradeId: string) => {
-    const grade = grades.find(g => g.id === gradeId)
-    if (grade && (grade.studentCount! > 0 || grade.classCount! > 0)) {
+  const handleDeleteGrade = async (gradeId: string) => {
+    try {
+      const response = await fetch(`/api/academic-grades/${gradeId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        // Soft delete - mark as inactive instead of removing from state
+        setGrades(grades.map(g => g.id === gradeId ? { ...g, isActive: false } : g))
+        toast({
+          title: "Grado desactivado",
+          description: "El grado ha sido desactivado exitosamente.",
+        })
+      } else {
+        const errorData = await response.json()
+        toast({
+          title: "Error al eliminar",
+          description: errorData.details ? `${errorData.error}. ${errorData.details}` : errorData.error,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
       toast({
-        title: "No se puede eliminar",
-        description: "Este grado tiene estudiantes o clases asignadas.",
+        title: "Error",
+        description: "No se pudo eliminar el grado",
         variant: "destructive"
       })
-      return
     }
-
-    setGrades(grades.filter(g => g.id !== gradeId))
-    toast({
-      title: "Grado eliminado",
-      description: "El grado ha sido eliminado exitosamente.",
-    })
   }
 
   // Section CRUD operations
@@ -306,22 +317,34 @@ export default function AdminGradesManagementPage() {
       })
   }
 
-  const handleDeleteSection = (sectionId: string) => {
-    const section = sections.find(s => s.id === sectionId)
-    if (section && (section.studentCount! > 0 || section.classCount! > 0)) {
+  const handleDeleteSection = async (sectionId: string) => {
+    try {
+      const response = await fetch(`/api/sections/${sectionId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        // Soft delete - mark as inactive instead of removing from state
+        setSections(sections.map(s => s.id === sectionId ? { ...s, isActive: false } : s))
+        toast({
+          title: "Sección desactivada",
+          description: "La sección ha sido desactivada exitosamente.",
+        })
+      } else {
+        const errorData = await response.json()
+        toast({
+          title: "Error al eliminar",
+          description: errorData.details ? `${errorData.error}. ${errorData.details}` : errorData.error,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
       toast({
-        title: "No se puede eliminar",
-        description: "Esta sección tiene estudiantes o clases asignadas.",
+        title: "Error",
+        description: "No se pudo eliminar la sección",
         variant: "destructive"
       })
-      return
     }
-
-    setSections(sections.filter(s => s.id !== sectionId))
-    toast({
-      title: "Sección eliminada",
-      description: "La sección ha sido eliminada exitosamente.",
-    })
   }
 
   // GradeSection CRUD operations
@@ -390,6 +413,69 @@ export default function AdminGradesManagementPage() {
           variant: 'destructive',
         });
       });
+  }
+
+  // GradeSection actions
+  const handleToggleGradeSectionStatus = async (gradeSectionId: string, isActive: boolean) => {
+    try {
+      const response = await fetch(`/api/grade-sections/${gradeSectionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive })
+      })
+      
+      if (response.ok) {
+        const updated = await response.json()
+        setGradeSections(gradeSections.map(gs => gs.id === gradeSectionId ? { ...gs, isActive } : gs))
+        toast({
+          title: isActive ? "Combinación activada" : "Combinación desactivada",
+          description: `La combinación ha sido ${isActive ? 'activada' : 'desactivada'} exitosamente.`,
+        })
+      } else {
+        const errorData = await response.json()
+        toast({
+          title: "Error",
+          description: errorData.error || "No se pudo actualizar la combinación",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la combinación",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleDeleteGradeSection = async (gradeSectionId: string) => {
+    try {
+      const response = await fetch(`/api/grade-sections/${gradeSectionId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        // Soft delete - mark as inactive instead of removing from state
+        setGradeSections(gradeSections.map(gs => gs.id === gradeSectionId ? { ...gs, isActive: false } : gs))
+        toast({
+          title: "Combinación eliminada",
+          description: "La combinación ha sido desactivada exitosamente.",
+        })
+      } else {
+        const errorData = await response.json()
+        toast({
+          title: "Error al eliminar",
+          description: errorData.details ? `${errorData.error}. ${errorData.details}` : errorData.error,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la combinación",
+        variant: "destructive"
+      })
+    }
   }
 
   // Form reset functions
@@ -501,10 +587,7 @@ export default function AdminGradesManagementPage() {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
+
           <Button variant="outline" size="sm">
             <Upload className="h-4 w-4 mr-2" />
             Importar
@@ -993,8 +1076,30 @@ export default function AdminGradesManagementPage() {
                       </div>
 
                       <div className="mt-3 pt-3 border-t">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center mb-2">
                           <span className="text-xs text-gray-500">Ocupación</span>
+                          <div className="flex space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleGradeSectionStatus(gradeSection.id, !gradeSection.isActive)}
+                              disabled={gradeSection.isActive && (gradeSection.currentStudents || 0) > 0}
+                            >
+                              {gradeSection.isActive ? 'Desactivar' : 'Activar'}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteGradeSection(gradeSection.id)}
+                              disabled={gradeSection.isActive && (gradeSection.currentStudents || 0) > 0}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs text-gray-500"></span>
                           <span className="text-xs text-gray-500">
                             {Math.round(((gradeSection.currentStudents || 0) / gradeSection.capacity) * 100)}%
                           </span>

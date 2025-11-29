@@ -69,3 +69,69 @@ export async function PATCH(
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
+
+// DELETE /api/sections/[id] - Eliminar una sección
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const params = 'then' in context.params 
+      ? await context.params 
+      : context.params;
+    const { id } = params;
+
+    // Verificar dependencias antes de eliminar
+    const dependencies = await prisma.section.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            studentProfiles: true,
+            classes: true
+          }
+        }
+      }
+    });
+
+    if (!dependencies) {
+      return NextResponse.json({ error: "Sección no encontrada" }, { status: 404 });
+    }
+
+    // Verificar si hay dependencias
+    if (dependencies._count.studentProfiles > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar esta sección porque hay estudiantes asignados',
+          details: `${dependencies._count.studentProfiles} estudiante(s) asignado(s)`
+        }, 
+        { status: 400 }
+      );
+    }
+
+    if (dependencies._count.classes > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar esta sección porque hay clases asignadas',
+          details: `${dependencies._count.classes} clase(s) asignada(s)`
+        }, 
+        { status: 400 }
+      );
+    }
+
+    // Eliminar la sección si no hay dependencias
+    await prisma.section.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ message: 'Sección eliminada exitosamente' });
+  } catch (error) {
+    console.error("Error eliminando sección:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+}

@@ -21,7 +21,6 @@ import {
   BookOpen,
   Users,
   MessageSquare,
-  Bell,
   Settings,
   LogOut,
   Home,
@@ -68,7 +67,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         { href: "/parent/children", label: "Mis Hijos", icon: Users },
         { href: "/parent/grades", label: "Calificaciones", icon: BookOpen },
         { href: "/parent/attendance", label: "Asistencia", icon: Calendar },
-        { href: "/communications", label: "Comunicaciones", icon: MessageSquare },
       ]
     }
 
@@ -81,15 +79,12 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         { href: "/teacher/attendance", label: "Asistencia", icon: UserCheck },
         { href: "/teacher/grades", label: "Calificaciones", icon: BookOpen },
         { href: "/teacher/schedule", label: "Mi Horario", icon: Calendar },
-        { href: "/communications", label: "Comunicaciones", icon: MessageSquare },
       ]
     }
 
     if (role === "ADMIN") {
       return [
         ...commonItems,
-        // Comunicaciones Unificadas
-        { href: "/communications", label: "Comunicaciones", icon: MessageSquare, badge: 5 },
         // Gestión de Entidades Principales
         { href: "/admin/students", label: "Estudiantes", icon: Users },
         { href: "/admin/teachers", label: "Profesores", icon: GraduationCap },
@@ -109,7 +104,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         // { href: "/student/attendance", label: "Mi Asistencia", icon: Calendar },
         // { href: "/student/schedule", label: "Mi Horario", icon: UserCheck },
         // { href: "/student/homework", label: "Mis Tareas", icon: ClipboardList },
-        { href: "/communications", label: "Mensajes", icon: MessageSquare },
         // { href: "/student/reports", label: "Reportes", icon: BarChart3 },
       ]
     }
@@ -187,13 +181,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
       {/* Bottom section */}
       <div className="border-t p-4 space-y-2 flex-shrink-0">
-        <Link
-          href="/profile"
-          className="flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-        >
-          <Settings className="h-5 w-5" />
-          <span>Configuración</span>
-        </Link>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
           className="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
@@ -251,14 +238,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <button className="relative rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                <Bell className="h-6 w-6" />
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                  2
-                </span>
-              </button>
-
               {/* Profile dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

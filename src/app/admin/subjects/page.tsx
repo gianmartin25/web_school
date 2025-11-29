@@ -56,8 +56,7 @@ import {
   Trash2,
   Users,
   GraduationCap,
-  Download,
-  Filter,
+
   Eye,
   MoreHorizontal,
   Award,
@@ -253,12 +252,14 @@ export default function AdminSubjectsPage() {
         })
         fetchSubjects()
       } else {
-        throw new Error('Error al eliminar materia')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al eliminar materia')
       }
-    } catch {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'No se pudo eliminar la materia'
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar la materia',
+        title: 'Error al eliminar',
+        description: errorMessage,
         variant: 'destructive',
       })
     }
@@ -375,18 +376,6 @@ export default function AdminSubjectsPage() {
       onClick: openCreateDialog,
       icon: Plus,
       variant: 'default' as const,
-    },
-    {
-      label: 'Exportar',
-      onClick: () => {},
-      icon: Download,
-      variant: 'outline' as const,
-    },
-    {
-      label: 'Filtros',
-      onClick: () => {},
-      icon: Filter,
-      variant: 'outline' as const,
     },
   ]
 

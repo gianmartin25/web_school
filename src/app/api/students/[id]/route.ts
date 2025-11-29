@@ -282,9 +282,21 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    // Verificar si el estudiante existe
+    // Verificar si el estudiante existe y obtener dependencias
     const existingStudent = await prisma.studentProfile.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        classes: true,
+        grades: true,
+        attendances: true,
+        _count: {
+          select: {
+            classes: true,
+            grades: true,
+            attendances: true
+          }
+        }
+      }
     })
 
     if (!existingStudent) {
@@ -294,24 +306,38 @@ export async function DELETE(
       )
     }
 
-    // Eliminar relaciones dependientes primero
-    await prisma.classStudent.deleteMany({
-      where: { studentId: id }
-    })
+    // Verificar dependencias - Solo permitir eliminación si no hay datos académicos
+    if (existingStudent._count.grades > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este estudiante porque tiene calificaciones registradas',
+          details: `${existingStudent._count.grades} calificación(es) registrada(s)`
+        }, 
+        { status: 400 }
+      )
+    }
 
-    await prisma.grade.deleteMany({
-      where: { studentId: id }
-    })
+    if (existingStudent._count.attendances > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este estudiante porque tiene registros de asistencia',
+          details: `${existingStudent._count.attendances} registro(s) de asistencia`
+        }, 
+        { status: 400 }
+      )
+    }
 
-    await prisma.attendance.deleteMany({
-      where: { studentId: id }
-    })
+    if (existingStudent._count.classes > 0) {
+      return NextResponse.json(
+        { 
+          error: 'No se puede eliminar este estudiante porque está inscrito en clases',
+          details: `${existingStudent._count.classes} clase(s) inscrita(s)`
+        }, 
+        { status: 400 }
+      )
+    }
 
-    await prisma.observation.deleteMany({
-      where: { studentId: id }
-    })
-
-    // Finalmente eliminar el estudiante
+    // Si no hay dependencias, eliminar el estudiante
     await prisma.studentProfile.delete({
       where: { id }
     })

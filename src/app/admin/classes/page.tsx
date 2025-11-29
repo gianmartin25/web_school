@@ -27,7 +27,7 @@ import {
   Eye,
   Edit,
   Trash2,
-  Download,
+
   User,
   CheckCircle,
   School,
@@ -422,12 +422,6 @@ export default function AdminClassesPage() {
                 icon: Plus,
                 onClick: () => setIsCreateDialogOpen(true),
                 variant: "default"
-              },
-              {
-                label: "Exportar",
-                icon: Download,
-                onClick: () => console.log('Export'),
-                variant: "outline"
               }
             ]}
           />

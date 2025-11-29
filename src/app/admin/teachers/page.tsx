@@ -51,8 +51,6 @@ import {
   BookOpen,
   Calendar,
   DollarSign,
-  Download,
-  Filter,
   Eye,
   Edit,
   Trash2,
@@ -77,7 +75,6 @@ interface Teacher {
   subjects: Subject[]
   classes: Class[]
   totalStudents: number
-  department?: string
 }
 
 interface Subject {
@@ -480,18 +477,6 @@ export default function AdminTeachersPage() {
       icon: UserPlus,
       variant: 'default' as const,
     },
-    {
-      label: 'Exportar',
-      onClick: () => {},
-      icon: Download,
-      variant: 'outline' as const,
-    },
-    {
-      label: 'Filtros',
-      onClick: () => {},
-      icon: Filter,
-      variant: 'outline' as const,
-    },
   ]
 
   const bulkActions = [
@@ -565,7 +550,6 @@ export default function AdminTeachersPage() {
                       <TableHead>ID Empleado</TableHead>
                       <TableHead>Materias</TableHead>
                       <TableHead>Estudiantes</TableHead>
-                      <TableHead>Departamento</TableHead>
                       <TableHead>Salario</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Fecha Contrato</TableHead>
@@ -620,12 +604,6 @@ export default function AdminTeachersPage() {
                           <div className="flex items-center gap-2">
                             <GraduationCap className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">{teacher.totalStudents}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Building className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{teacher.department || 'N/A'}</span>
                           </div>
                         </TableCell>
                         <TableCell>
