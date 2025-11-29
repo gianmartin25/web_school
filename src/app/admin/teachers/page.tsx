@@ -43,6 +43,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MultiSubjectCombobox } from '@/components/multi-subject-combobox'
+import { ValidatedDateInput } from '@/components/ui/validated-date-input'
+import { dateValidationPresets } from '@/lib/date-validations'
 import { toast } from '@/hooks/use-toast'
 import { 
   Users, 
@@ -768,19 +770,17 @@ export default function AdminTeachersPage() {
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth" className="text-sm font-medium">Fecha de Nacimiento</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      value={teacherForm.dateOfBirth}
-                      onChange={(e) => setTeacherForm({
-                        ...teacherForm,
-                        dateOfBirth: e.target.value
-                      })}
-                      className="h-11"
-                    />
-                  </div>
+                  <ValidatedDateInput
+                    id="dateOfBirth"
+                    label="Fecha de Nacimiento"
+                    value={teacherForm.dateOfBirth}
+                    onChange={(value) => setTeacherForm({
+                      ...teacherForm,
+                      dateOfBirth: value
+                    })}
+                    validationOptions={dateValidationPresets.teacherBirthDate}
+                    required
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -807,19 +807,17 @@ export default function AdminTeachersPage() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="hireDate" className="text-sm font-medium">Fecha de Contrato</Label>
-                    <Input
-                      id="hireDate"
-                      type="date"
-                      value={teacherForm.hireDate}
-                      onChange={(e) => setTeacherForm({
-                        ...teacherForm,
-                        hireDate: e.target.value
-                      })}
-                      className="h-11"
-                    />
-                  </div>
+                  <ValidatedDateInput
+                    id="hireDate"
+                    label="Fecha de Contrato"
+                    value={teacherForm.hireDate}
+                    onChange={(value) => setTeacherForm({
+                      ...teacherForm,
+                      hireDate: value
+                    })}
+                    validationOptions={dateValidationPresets.hireDate}
+                    required
+                  />
                   
                   <div className="space-y-2">
                     <Label htmlFor="salary" className="text-sm font-medium">Salario Mensual (S/)</Label>

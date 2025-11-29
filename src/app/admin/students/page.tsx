@@ -48,6 +48,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from '@/hooks/use-toast'
+import { ValidatedDateInput } from '@/components/ui/validated-date-input'
+import { dateValidationPresets } from '@/lib/date-validations'
 import { 
   Users, 
   UserPlus, 
@@ -740,18 +742,17 @@ export default function AdminStudentsPage() {
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="dateOfBirth">Fecha de Nacimiento</Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={studentForm.dateOfBirth}
-                    onChange={(e) => setStudentForm({
-                      ...studentForm,
-                      dateOfBirth: e.target.value
-                    })}
-                  />
-                </div>
+                <ValidatedDateInput
+                  id="dateOfBirth"
+                  label="Fecha de Nacimiento"
+                  value={studentForm.dateOfBirth}
+                  onChange={(value) => setStudentForm({
+                    ...studentForm,
+                    dateOfBirth: value
+                  })}
+                  validationOptions={dateValidationPresets.studentBirthDate}
+                  required
+                />
                 <div className="grid gap-2">
                   <Label htmlFor="grade">Grado</Label>
                   <Select 

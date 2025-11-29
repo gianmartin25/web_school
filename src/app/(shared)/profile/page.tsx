@@ -33,6 +33,8 @@ import {
   Save,
   Camera,
 } from "lucide-react"
+import { ValidatedDateInput } from "@/components/ui/validated-date-input"
+import { dateValidationPresets } from "@/lib/date-validations"
 
 export default function ProfilePage() {
   const { data: session, status } = useSession()
@@ -195,13 +197,19 @@ export default function ProfilePage() {
                       placeholder="Tu dirección completa"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Fecha de Nacimiento</Label>
-                    <Input 
-                      id="dateOfBirth" 
-                      type="date"
-                    />
-                  </div>
+                  <ValidatedDateInput
+                    id="dateOfBirth"
+                    label="Fecha de Nacimiento"
+                    value=""
+                    onChange={(value) => {
+                      // Add onChange logic here
+                    }}
+                    validationOptions={
+                      session.user.role === "STUDENT" 
+                        ? dateValidationPresets.studentBirthDate 
+                        : dateValidationPresets.teacherBirthDate
+                    }
+                  />
                   {session.user.role === "PARENT" && (
                     <div className="space-y-2">
                       <Label htmlFor="occupation">Ocupación</Label>
@@ -227,14 +235,16 @@ export default function ProfilePage() {
                             disabled
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="hireDate">Fecha de Contratación</Label>
-                          <Input 
-                            id="hireDate" 
-                            type="date"
-                            disabled
-                          />
-                        </div>
+                        <ValidatedDateInput
+                          id="hireDate"
+                          label="Fecha de Contratación"
+                          value=""
+                          onChange={(value) => {
+                            // Add onChange logic here
+                          }}
+                          validationOptions={dateValidationPresets.hireDate}
+                          disabled
+                        />
                         <div className="space-y-2 md:col-span-2">
                           <Label htmlFor="specializations">Especializaciones</Label>
                           <Textarea 
@@ -277,14 +287,16 @@ export default function ProfilePage() {
                             disabled
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="enrollmentDate">Fecha de Matrícula</Label>
-                          <Input 
-                            id="enrollmentDate" 
-                            type="date"
-                            disabled
-                          />
-                        </div>
+                        <ValidatedDateInput
+                          id="enrollmentDate"
+                          label="Fecha de Matrícula"
+                          value=""
+                          onChange={(value) => {
+                            // Add onChange logic here
+                          }}
+                          validationOptions={dateValidationPresets.enrollmentDate}
+                          disabled
+                        />
                       </div>
                     </div>
                   </>

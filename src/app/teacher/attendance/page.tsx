@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { toast } from '@/hooks/use-toast'
+import { ValidatedDateInput } from '@/components/ui/validated-date-input'
 import { 
   Users, 
   Calendar,
@@ -359,16 +360,19 @@ function AttendancePageContent() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Label htmlFor="date">Fecha</Label>
-            <Input
+            <ValidatedDateInput
               id="date"
-              type="date"
+              label="Fecha"
               value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value)
+              onChange={(value) => {
+                setSelectedDate(value)
                 setExpandedClassId(null)
                 setStudentsData(new Map())
                 setAttendanceRecords(new Map())
+              }}
+              validationOptions={{
+                allowFuture: false,
+                maxDate: new Date()
               }}
               className="max-w-xs"
             />

@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/hooks/use-toast'
+import { ValidatedDateInput } from '@/components/ui/validated-date-input'
+import { validatePeriodDates, dateValidationPresets } from '@/lib/date-validations'
 import { 
   Calendar,
   Settings,
@@ -76,6 +78,9 @@ export default function AcademicConfigPage() {
   // Estados para escalas de calificación
   const [gradingScales, setGradingScales] = useState<GradingScale[]>([])
   const [showScaleDialog, setShowScaleDialog] = useState(false)
+  
+  // Estados para validación de fechas
+  const [dateValidationErrors, setDateValidationErrors] = useState<string[]>([])
   
   // Estados para configuración general
   const [academicConfig, setAcademicConfig] = useState<AcademicConfig>({
@@ -481,25 +486,37 @@ export default function AcademicConfigPage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="startDate">Fecha de Inicio *</Label>
-                        <Input
-                          id="startDate"
-                          type="date"
-                          value={periodForm.startDate}
-                          onChange={(e) => setPeriodForm({...periodForm, startDate: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="endDate">Fecha de Fin *</Label>
-                        <Input
-                          id="endDate"
-                          type="date"
-                          value={periodForm.endDate}
-                          onChange={(e) => setPeriodForm({...periodForm, endDate: e.target.value})}
-                        />
-                      </div>
+                      <ValidatedDateInput
+                        id="startDate"
+                        label="Fecha de Inicio"
+                        value={periodForm.startDate}
+                        onChange={(value) => setPeriodForm({...periodForm, startDate: value})}
+                        validationOptions={dateValidationPresets.academicPeriodStart}
+                        required
+                      />
+                      <ValidatedDateInput
+                        id="endDate"
+                        label="Fecha de Fin"
+                        value={periodForm.endDate}
+                        onChange={(value) => setPeriodForm({...periodForm, endDate: value})}
+                        validationOptions={dateValidationPresets.academicPeriodEnd}
+                        required
+                      />
                     </div>
+
+                    {/* Date range validation message */}
+                    {periodForm.startDate && periodForm.endDate && (() => {
+                      const validation = validatePeriodDates(periodForm.startDate, periodForm.endDate)
+                      if (!validation.rangeFvalid && validation.rangeError) {
+                        return (
+                          <div className="text-sm text-red-600 flex items-center gap-1 bg-red-50 p-2 rounded">
+                            <AlertCircle className="h-3 w-3" />
+                            {validation.rangeError}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
