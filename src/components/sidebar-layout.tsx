@@ -74,11 +74,11 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       return [
         ...commonItems,
         { href: "/teacher", label: "Dashboard", icon: Home },
-        { href: "/teacher/classes", label: "Mis Clases", icon: GraduationCap },
-        { href: "/teacher/students", label: "Mis Estudiantes", icon: Users },
+        // { href: "/teacher/classes", label: "Mis Clases", icon: GraduationCap },
+        // { href: "/teacher/students", label: "Mis Estudiantes", icon: Users },
         { href: "/teacher/attendance", label: "Asistencia", icon: UserCheck },
         { href: "/teacher/grades", label: "Calificaciones", icon: BookOpen },
-        { href: "/teacher/schedule", label: "Mi Horario", icon: Calendar },
+        // { href: "/teacher/schedule", label: "Mi Horario", icon: Calendar },
       ]
     }
 
