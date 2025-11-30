@@ -408,9 +408,9 @@ function AttendancePageContent() {
           <Card>
             <CardContent className="text-center py-12">
               <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay clases programadas</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay clases asignadas</h3>
               <p className="text-gray-600">
-                No tienes clases programadas para esta fecha.
+                No tienes clases asignadas para esta fecha. Verifica que tengas clases creadas y que seas el profesor asignado.
               </p>
             </CardContent>
           </Card>

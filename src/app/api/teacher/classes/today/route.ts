@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
     console.log('Date requested:', dateParam)
     console.log('Target date:', targetDate)
     console.log('Day of week:', dayOfWeek, currentDay)
+    console.log('Teacher ID:', teacherProfile.id)
 
     // Obtener clases del profesor 
     const teacherClasses = await prisma.class.findMany({
@@ -105,16 +106,24 @@ export async function GET(request: NextRequest) {
     console.log('Total classes found:', teacherClasses.length)
     console.log('Classes with schedules for', currentDay, ':', teacherClasses.filter(c => c.schedules.length > 0).length)
 
+    // Si no hay clases con horarios para este día, mostrar todas las clases del profesor
+    let classesToShow = teacherClasses.filter(classItem => classItem.schedules.length > 0)
+    
+    if (classesToShow.length === 0) {
+      console.log('No classes with schedules found for', currentDay, ', showing all teacher classes')
+      classesToShow = teacherClasses
+    }
+
     // Formatear las clases con información adicional
-    const formattedClasses = teacherClasses
-      .filter(classItem => classItem.schedules.length > 0) // Solo clases que tienen horario hoy
+    const formattedClasses = classesToShow
       .map(classItem => {
         // Verificar si ya se registró asistencia para esta clase hoy
         const hasAttendanceToday = existingAttendances.some(
           attendance => attendance.classId === classItem.id
         )
 
-        const schedule = classItem.schedules[0] // Ya está filtrado por dayOfWeek y ordenado
+        // Si hay horarios para este día, usar el primero
+        const schedule = classItem.schedules.length > 0 ? classItem.schedules[0] : null
 
         return {
           id: classItem.id,
@@ -127,11 +136,16 @@ export async function GET(request: NextRequest) {
           grade: classItem.grade?.name || '',
           section: classItem.section?.name || '',
           academicYear: classItem.academicYear,
-          schedule: {
+          schedule: schedule ? {
             startTime: schedule.startTime.toISOString(),
             endTime: schedule.endTime.toISOString(),
             room: schedule.room || null,
             dayOfWeek: schedule.dayOfWeek
+          } : {
+            startTime: new Date('1970-01-01T08:00:00.000Z').toISOString(),
+            endTime: new Date('1970-01-01T09:00:00.000Z').toISOString(),
+            room: null,
+            dayOfWeek: currentDay
           },
           students: classItem.classStudents.map(classStudent => ({
             id: classStudent.student.id,
