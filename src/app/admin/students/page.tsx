@@ -450,7 +450,7 @@ export default function AdminStudentsPage() {
   const filteredStudents = (Array.isArray(students) ? students : []).filter(student =>
     `${student.firstName} ${student.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.grade.toLowerCase().includes(searchTerm.toLowerCase())
+    (student.grade && student.grade.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   const formatDate = (dateString: string) => {
